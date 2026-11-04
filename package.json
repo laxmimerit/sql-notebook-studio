@@ -569,6 +569,22 @@
           ],
           "description": "Ask before running DROP, TRUNCATE, or DELETE/UPDATE without WHERE."
         },
+        "sqlNotebook.autocomplete.keywordCase": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "upper",
+            "lower"
+          ],
+          "enumDescriptions": [
+            "Follow what you type: \"sel\" gives select, \"SEL\" gives SELECT.",
+            "Always SELECT, FROM, WHERE.",
+            "Always select, from, where."
+          ],
+          "default": "auto",
+          "order": 5,
+          "description": "Letter case of SQL keywords that autocomplete inserts. Matching ignores case and is fuzzy either way: \"slt\" finds SELECT, \"EMP\" finds employees."
+        },
         "sqlNotebook.ai.provider": {
           "type": "string",
           "enum": [

@@ -79,7 +79,7 @@ To make your own notebook, run **SQL Notebook Studio: New SQL Notebook**, or rig
 | **Results grid** | Virtual scrolling, sort (Shift+click for more columns), filter per column (`>10`, `a..b`, `!x`, `null`), resize and pin columns, value viewer for long text and JSON. |
 | **Charts** | Bar, line, area, scatter and pie. Pick X and Y, stack series, save the chart with the cell. |
 | **Explorer** | Connections, schemas, tables, views and columns with types and keys. Select Top 100 and Describe in one click. |
-| **Autocomplete** | Tables, views, columns, schemas and keywords from the live schema. `alias.` lists that table's columns. |
+| **Autocomplete** | Tables, views, columns, schemas and keywords from the live schema. Fuzzy and case-blind: `slt` finds `SELECT`, `EMP` finds `employees`. `alias.` lists that table's columns. |
 | **Variables** | `{{name}}` asks for a value once per session. `${env:NAME}` reads an environment variable. |
 | **Export** | Copy as TSV, CSV, Markdown or JSON. Export results to CSV or JSON, and notebooks to HTML (with charts), PDF or Markdown. |
 | **Safety** | Confirms `DROP`, `TRUNCATE`, and `UPDATE` or `DELETE` without `WHERE`. Production tags and read-only connections. |
@@ -189,6 +189,7 @@ ORDER BY price DESC;
 | `sqlNotebook.queryTimeoutSeconds` | `0` | Query timeout. `0` means none |
 | `sqlNotebook.saveResults` | `false` | Save results in the notebook file |
 | `sqlNotebook.confirmDestructive` | `production` | When to confirm risky statements |
+| `sqlNotebook.autocomplete.keywordCase` | `auto` | Keyword case: `auto` follows what you type, or always `upper` or `lower` |
 | `sqlNotebook.export.maxRows` | `500` | Rows per result in exported files |
 | `sqlNotebook.ai.provider` | `openai` | AI provider |
 | `sqlNotebook.ai.model` | | Model name, for example `qwen3.8:27b` for Ollama |

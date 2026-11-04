@@ -1,28 +1,14 @@
 // Autocomplete in SQL cells: keywords, tables and views from the live schema,
 // columns of the tables in the query, and alias.column after a dot.
+// VS Code's suggest widget filters the items: fuzzy and case-blind, so "slt"
+// finds SELECT and "EMP" finds employees. Keywords are inserted in the case
+// the user types (setting sqlNotebook.autocomplete.keywordCase).
 
 import * as vscode from 'vscode';
-import type { ConnectionConfig, DriverId } from '../db/types';
+import type { ConnectionConfig } from '../db/types';
 import type { SchemaCache } from './cache';
 import type { Kernels } from '../notebook/kernels';
-
-const KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN',
-  'FULL OUTER JOIN', 'CROSS JOIN', 'ON', 'USING', 'AS', 'AND', 'OR', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'IS NULL', 'IS NOT NULL',
-  'DISTINCT', 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT', 'WITH', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'INSERT INTO', 'VALUES',
-  'UPDATE', 'SET', 'DELETE FROM', 'CREATE TABLE', 'CREATE VIEW', 'CREATE INDEX', 'ALTER TABLE', 'DROP TABLE', 'PRIMARY KEY',
-  'FOREIGN KEY', 'REFERENCES', 'DEFAULT', 'NULL', 'ASC', 'DESC', 'OVER', 'PARTITION BY', 'ROWS', 'BEGIN', 'COMMIT', 'ROLLBACK',
-  'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'COALESCE', 'CAST', 'ROUND', 'LOWER', 'UPPER', 'TRIM', 'LENGTH', 'SUBSTRING', 'NOW',
-  'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'EXPLAIN',
-];
-
-const EXTRA: Partial<Record<DriverId, string[]>> = {
-  mysql: ['SHOW TABLES', 'SHOW DATABASES', 'DESCRIBE', 'USE', 'AUTO_INCREMENT', 'IFNULL', 'GROUP_CONCAT', 'DATE_FORMAT', 'STR_TO_DATE'],
-  postgres: ['RETURNING', 'ILIKE', 'SERIAL', 'JSONB', 'STRING_AGG', 'GENERATE_SERIES', 'DATE_TRUNC', 'TO_CHAR', 'ON CONFLICT'],
-  mssql: ['TOP', 'GO', 'NVARCHAR', 'ISNULL', 'GETDATE', 'DATEADD', 'DATEDIFF', 'STRING_AGG', 'OUTPUT', 'IDENTITY'],
-  sqlite: ['PRAGMA', 'AUTOINCREMENT', 'IFNULL', 'STRFTIME', 'DATE', 'DATETIME', 'GROUP_CONCAT', 'WITHOUT ROWID'],
-  duckdb: ['DESCRIBE', 'SUMMARIZE', 'PIVOT', 'UNPIVOT', 'QUALIFY', 'read_csv', 'read_parquet', 'read_json', 'EXCLUDE', 'COPY'],
-};
+import { EXTRA, KEYWORDS, applyCase, keywordCase, type KeywordCase } from './keywords';
 
 const ALIAS = /\b(?:FROM|JOIN|UPDATE|INTO)\s+((?:[`"[]?[\w$]+[`"\]]?\.)?[`"[]?[\w$]+[`"\]]?)(?:\s+(?:AS\s+)?([A-Za-z_][\w$]*))?/gi;
 const NOT_ALIAS = new Set(['WHERE', 'ON', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL', 'CROSS', 'GROUP', 'ORDER', 'LIMIT', 'USING', 'SET', 'VALUES', 'UNION', 'HAVING', 'AS', 'NATURAL', 'WINDOW', 'QUALIFY']);
@@ -30,7 +16,7 @@ const NOT_ALIAS = new Set(['WHERE', 'ON', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUT
 export class SqlCompletion implements vscode.CompletionItemProvider {
   constructor(private readonly kernels: Kernels, private readonly cache: SchemaCache) {}
 
-  async provideCompletionItems(doc: vscode.TextDocument, pos: vscode.Position, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
+  async provideCompletionItems(doc: vscode.TextDocument, pos: vscode.Position, token: vscode.CancellationToken): Promise<vscode.CompletionItem[] | vscode.CompletionList> {
     const found = this.cellFor(doc);
     if (!found) return [];
     const conn = this.kernels.connectionFor(found.nb, found.cell);
@@ -80,12 +66,16 @@ export class SqlCompletion implements vscode.CompletionItemProvider {
         items.push(it);
       });
     }
+    const typed = /[\w$]*$/.exec(before)?.[0] ?? '';
+    const setting = vscode.workspace.getConfiguration('sqlNotebook').get<KeywordCase>('autocomplete.keywordCase', 'auto');
+    const keyCase = keywordCase(typed, setting);
     for (const k of [...KEYWORDS, ...(EXTRA[conn.driver] ?? [])]) {
-      const it = new vscode.CompletionItem(k, vscode.CompletionItemKind.Keyword);
+      const it = new vscode.CompletionItem(applyCase(k, keyCase), vscode.CompletionItemKind.Keyword);
       it.sortText = '5' + k;
       items.push(it);
     }
-    return items;
+    // Nothing typed yet: ask again on the first letter, so keywords follow its case.
+    return new vscode.CompletionList(items, typed === '' && setting === 'auto');
   }
 
   private cellFor(doc: vscode.TextDocument): { nb: vscode.NotebookDocument; cell: vscode.NotebookCell } | undefined {

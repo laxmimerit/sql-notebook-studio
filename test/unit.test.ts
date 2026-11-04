@@ -6,6 +6,7 @@ import { classify } from '../src/db/safety';
 import { formatDate, kindFromType, toCell } from '../src/db/values';
 import { findVariables, substitute, resolveEnv } from '../src/util/variables';
 import { extractSql, stripThinking } from '../src/ai/prompts';
+import { EXTRA, KEYWORDS, applyCase, keywordCase } from '../src/schema/keywords';
 
 const sqls = (text: string, d: Parameters<typeof splitStatements>[1]) => splitStatements(text, d).map((s) => s.sql);
 
@@ -179,5 +180,29 @@ describe('AI suggestions', () => {
     expect(isSchemaChange('-- add an index\nCREATE INDEX i ON t(a);')).toBe(true);
     expect(isSchemaChange('SELECT * FROM t WHERE a = 1')).toBe(false);
     expect(isSchemaChange('WITH x AS (SELECT 1) SELECT * FROM x')).toBe(false);
+  });
+});
+
+describe('autocomplete keyword case', () => {
+  it('follows what is typed in auto mode', () => {
+    expect(keywordCase('sel')).toBe('lower');
+    expect(keywordCase('slt')).toBe('lower');
+    expect(keywordCase('SEL')).toBe('upper');
+    expect(keywordCase('Sel')).toBe('upper');
+    expect(keywordCase('')).toBe('upper');
+    expect(keywordCase('_')).toBe('upper');
+  });
+  it('honours a fixed setting', () => {
+    expect(keywordCase('sel', 'upper')).toBe('upper');
+    expect(keywordCase('SEL', 'lower')).toBe('lower');
+  });
+  it('changes keywords but leaves mixed-case names alone', () => {
+    expect(applyCase('GROUP BY', 'lower')).toBe('group by');
+    expect(applyCase('SELECT', 'upper')).toBe('SELECT');
+    expect(applyCase('read_csv', 'upper')).toBe('read_csv');
+  });
+  it('lists SELECT for every driver', () => {
+    expect(KEYWORDS).toContain('SELECT');
+    expect(Object.keys(EXTRA)).toEqual(['mysql', 'postgres', 'mssql', 'sqlite', 'duckdb']);
   });
 });

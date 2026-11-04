@@ -10,7 +10,7 @@ First release.
 - MySQL / MariaDB, PostgreSQL, SQL Server, plus built-in SQLite and DuckDB.
 - SSL/TLS and SSH tunnels. Passwords are kept in VS Code's secret storage.
 - Connection explorer with tables and columns, Select Top 100 and Describe.
-- Autocomplete for tables, columns, aliases and keywords.
+- Autocomplete for tables, columns, aliases and keywords. Fuzzy and case-blind (`slt` finds SELECT); keywords follow the case you type.
 - Results grid: virtual scrolling, sort, filter, resize, pin, copy, CSV/JSON export.
 - Quick charts: bar, line, area, scatter and pie.
 - `{{variables}}` and `${env:NAME}` in queries.

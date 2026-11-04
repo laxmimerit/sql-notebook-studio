@@ -1,0 +1,47 @@
+-- sqlnb v1 {"connection":"Sample Shop","variables":{"country":"India"}}
+-- %% md
+-- # Welcome to SQL Notebook
+--
+-- This notebook runs on **Sample Shop**, a built-in SQLite database of a small electronics store.
+-- Press **Ctrl+Enter** in a cell to run it, or **Run All** at the top.
+-- %% sql
+SELECT name, category, price, stock
+FROM products
+ORDER BY price DESC;
+-- %% md
+-- ## Sort, filter, chart
+--
+-- Click a column header to sort. Use the funnel to filter (try `>500` on price). Switch to **Chart** to plot a result.
+-- %% sql {"view":"chart","chart":{"type":"line","x":"month","y":["revenue"]}}
+SELECT month, orders, revenue
+FROM monthly_revenue;
+-- %% md
+-- ## Several statements, one cell
+--
+-- Each statement gets its own tab.
+-- %% sql
+SELECT COUNT(*) AS customers FROM customers;
+SELECT status, COUNT(*) AS orders FROM orders GROUP BY status ORDER BY 2 DESC;
+SELECT category, ROUND(SUM(i.quantity * i.unit_price), 2) AS revenue
+FROM order_items i JOIN products p ON p.id = i.product_id
+GROUP BY category
+ORDER BY revenue DESC;
+-- %% md
+-- ## Variables
+--
+-- `{{country}}` is filled in from the notebook's variables. Click **Variables** in the toolbar to change it.
+-- %% sql
+SELECT c.city, COUNT(o.id) AS orders, ROUND(SUM(i.quantity * i.unit_price), 2) AS revenue
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+JOIN order_items i ON i.order_id = o.id
+WHERE c.country = '{{country}}'
+GROUP BY c.city
+ORDER BY revenue DESC;
+-- %% md
+-- ## AI
+--
+-- Run **Configure AI** (the ✦ button in the Connections view) to use OpenAI, Anthropic, OpenRouter, Ollama or your own API.
+-- Then use ✦ on any cell to explain it, run an AI cell to write SQL, or click **Fix with AI** on an error.
+-- %% ai
+-- Top 5 customers by total spend, with their country and number of orders

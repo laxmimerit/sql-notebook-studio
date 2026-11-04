@@ -1,0 +1,215 @@
+.sqlnb {
+  --b: var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.28));
+  --muted: var(--vscode-descriptionForeground);
+  --hover: var(--vscode-list-hoverBackground);
+  --mono: var(--vscode-editor-font-family, monospace);
+  --mono-size: min(var(--vscode-editor-font-size, 12px), 12.5px);
+  --r: 5px;
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+  color: var(--vscode-foreground);
+  position: relative;
+}
+.sqlnb * { box-sizing: border-box; }
+.sqlnb .muted { color: var(--muted); }
+.sqlnb .small { font-size: 11.5px; }
+.sqlnb .spacer { flex: 1; }
+.sqlnb .pad { padding: 6px 2px; }
+
+/* Buttons */
+.sqlnb button { font: inherit; color: inherit; cursor: pointer; }
+.sqlnb .tb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: var(--r);
+  background: transparent; color: var(--vscode-icon-foreground, var(--vscode-foreground));
+}
+.sqlnb .tb:hover { background: var(--vscode-toolbar-hoverBackground, var(--hover)); }
+.sqlnb .tb.on { background: var(--vscode-inputOption-activeBackground, var(--hover)); border-color: var(--vscode-inputOption-activeBorder, transparent); }
+.sqlnb .tb.active { color: var(--vscode-textLink-foreground); }
+.sqlnb .btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: var(--r);
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+}
+.sqlnb .btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.sqlnb .btn.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.sqlnb .btn.primary:hover { background: var(--vscode-button-hoverBackground); }
+.sqlnb .link { background: none; border: none; padding: 0 0 0 6px; color: var(--vscode-textLink-foreground); }
+.sqlnb .link:hover { text-decoration: underline; }
+.sqlnb button:focus-visible, .sqlnb input:focus-visible, .sqlnb select:focus-visible, .sqlnb .grid-scroll:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+
+/* Segmented control */
+.sqlnb .seg { display: inline-flex; border: 1px solid var(--b); border-radius: var(--r); overflow: hidden; flex: none; }
+.sqlnb .seg button { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border: none; background: transparent; color: var(--muted); }
+.sqlnb .seg button + button { border-left: 1px solid var(--b); }
+.sqlnb .seg button:hover:not(:disabled) { background: var(--hover); color: var(--vscode-foreground); }
+.sqlnb .seg button.on { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+.sqlnb .seg button:disabled { opacity: 0.45; cursor: default; }
+
+/* Statement tabs */
+.sqlnb .tabs { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; overflow-x: auto; scrollbar-width: thin; }
+.sqlnb .tab {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r);
+  background: transparent; color: var(--muted); white-space: nowrap; flex: none;
+}
+.sqlnb .tab:hover { background: var(--hover); color: var(--vscode-foreground); }
+.sqlnb .tab.on { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+.sqlnb .tab-n { font-weight: 600; opacity: 0.8; }
+.sqlnb .tab-sql { font-family: var(--mono); font-size: 11.5px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.sqlnb .tab-meta { font-size: 11px; opacity: 0.8; }
+.sqlnb .tabs-total { margin-left: auto; padding-left: 8px; color: var(--muted); font-size: 11.5px; flex: none; }
+
+/* Toolbar */
+.sqlnb .toolbar { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; min-height: 26px; flex-wrap: wrap; }
+.sqlnb .search { position: relative; display: flex; align-items: center; margin-left: 4px; }
+.sqlnb .search > .codicon { position: absolute; left: 7px; opacity: 0.6; font-size: 13px; pointer-events: none; }
+.sqlnb .search input {
+  width: 170px; height: 24px; padding: 0 22px 0 26px; border-radius: var(--r); font: inherit;
+  color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, var(--b));
+}
+.sqlnb .search input::placeholder { color: var(--vscode-input-placeholderForeground); }
+.sqlnb .search .clear { position: absolute; right: 2px; border: none; background: none; padding: 2px; display: flex; opacity: 0.7; }
+.sqlnb .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; margin-right: 4px; display: inline-flex; align-items: center; }
+.sqlnb .meta .dot { padding: 0 5px; opacity: 0.6; }
+
+/* Menus */
+.sqlnb .menu-wrap { position: relative; }
+.sqlnb .menu {
+  position: absolute; top: 28px; left: 0; z-index: 20; min-width: 190px; padding: 4px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); color: var(--vscode-menu-foreground, inherit);
+  border: 1px solid var(--vscode-menu-border, var(--b)); border-radius: 6px; box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  display: flex; flex-direction: column; max-height: 260px; overflow: auto;
+}
+.sqlnb .menu.right { left: auto; right: 0; }
+.sqlnb .menu-item { display: flex; align-items: center; gap: 8px; text-align: left; padding: 5px 9px; border: none; border-radius: 4px; background: none; white-space: nowrap; cursor: pointer; }
+.sqlnb .menu-item:hover { background: var(--vscode-menu-selectionBackground, var(--hover)); color: var(--vscode-menu-selectionForeground, inherit); }
+.sqlnb .menu-item.muted { cursor: default; }
+
+/* Grid */
+.sqlnb .grid-scroll {
+  position: relative; overflow: auto; border: 1px solid var(--b); border-radius: var(--r);
+  background: var(--vscode-editor-background); scrollbar-width: thin;
+}
+.sqlnb .grid-inner { position: relative; min-width: 100%; }
+.sqlnb .g-head { position: sticky; top: 0; z-index: 3; }
+.sqlnb .g-row { display: flex; }
+.sqlnb .g-cell {
+  flex: none; padding: 0 9px; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-right: 1px solid var(--b); border-bottom: 1px solid var(--b);
+}
+.sqlnb .g-hrow .g-cell, .sqlnb .g-frow .g-cell { background: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-sideBar-background)); }
+.sqlnb .g-h { position: relative; line-height: 29px; font-weight: 600; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; padding-right: 22px; }
+.sqlnb .g-h:hover { background: var(--hover) !important; }
+.sqlnb .g-h.num { justify-content: flex-end; }
+.sqlnb .g-hname { overflow: hidden; text-overflow: ellipsis; }
+.sqlnb .g-sort { display: inline-flex; align-items: center; color: var(--vscode-textLink-foreground); flex: none; }
+.sqlnb .g-sort .codicon { font-size: 12px; }
+.sqlnb .g-sort sub { font-size: 9px; }
+.sqlnb .g-pin { position: absolute; right: 4px; top: 6px; display: none; width: 18px; height: 18px; padding: 0; border: none; background: none; opacity: 0.6; align-items: center; justify-content: center; }
+.sqlnb .g-pin .codicon { font-size: 12px; }
+.sqlnb .g-h:hover .g-pin, .sqlnb .g-pin.on { display: flex; }
+.sqlnb .g-pin.on { opacity: 1; color: var(--vscode-textLink-foreground); }
+.sqlnb .g-resize { position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 2; }
+.sqlnb .g-resize:hover { background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)); }
+.sqlnb .g-f { padding: 3px 4px; line-height: normal; }
+.sqlnb .g-f input {
+  width: 100%; height: 22px; padding: 0 6px; font: inherit; font-size: 11.5px; border-radius: 3px;
+  color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, var(--b));
+}
+.sqlnb .g-num {
+  position: sticky; left: 0; z-index: 2; text-align: right; color: var(--vscode-editorLineNumber-foreground, var(--muted));
+  background: var(--vscode-editor-background); font-family: var(--mono); font-size: 11px; padding: 0 8px; cursor: pointer;
+}
+.sqlnb .g-corner { z-index: 4; text-align: center; cursor: pointer; font-family: inherit; }
+.sqlnb .g-body { will-change: transform; }
+.sqlnb .g-v { font-family: var(--mono); font-size: var(--mono-size); cursor: default; user-select: none; }
+.sqlnb .g-v.pinned { background: var(--vscode-editor-background); }
+.sqlnb .g-row.odd .g-v { background: var(--vscode-editor-background); }
+.sqlnb .g-row.odd .g-v:not(.pinned) { background: color-mix(in srgb, var(--vscode-foreground) 3%, var(--vscode-editor-background)); }
+.sqlnb .g-row:hover .g-v { background: var(--hover); }
+.sqlnb .g-row.sel-row .g-num { color: var(--vscode-foreground); background: var(--vscode-list-inactiveSelectionBackground); }
+.sqlnb .g-v.sel { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; background: var(--vscode-list-activeSelectionBackground, var(--hover)) !important; color: var(--vscode-list-activeSelectionForeground, inherit); }
+.sqlnb .g-v.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sqlnb .g-v.null { color: var(--muted); font-style: italic; opacity: 0.75; }
+.sqlnb .g-v.json { color: var(--vscode-debugTokenExpression-string, var(--vscode-charts-orange)); }
+.sqlnb .g-v.bin { color: var(--vscode-debugTokenExpression-number, var(--vscode-charts-purple)); }
+.sqlnb .g-v.bool { color: var(--vscode-debugTokenExpression-boolean, var(--vscode-charts-blue)); }
+.sqlnb .g-empty { padding: 18px; text-align: center; color: var(--muted); }
+
+/* Command result, running, errors */
+.sqlnb .command { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 2px; }
+.sqlnb .command .ok { color: var(--vscode-testing-iconPassed, var(--vscode-charts-green)); }
+.sqlnb .message { flex-basis: 100%; font-family: var(--mono); font-size: 11.5px; color: var(--muted); padding-left: 24px; white-space: pre-wrap; }
+.sqlnb .running { display: flex; align-items: center; gap: 8px; padding: 6px 2px; color: var(--vscode-foreground); }
+.sqlnb .running.below { padding-top: 8px; }
+.sqlnb .error {
+  margin-top: 6px; padding: 8px 10px 10px; border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--vscode-errorForeground) 45%, transparent);
+  border-left: 3px solid var(--vscode-errorForeground);
+  background: color-mix(in srgb, var(--vscode-errorForeground) 7%, transparent);
+}
+.sqlnb .error.stopped { border-color: var(--b); border-left-color: var(--vscode-charts-yellow, var(--muted)); background: transparent; }
+.sqlnb .error-head { display: flex; align-items: center; gap: 8px; }
+.sqlnb .error-head > .codicon { color: var(--vscode-errorForeground); }
+.sqlnb .error.stopped .error-head > .codicon { color: var(--vscode-charts-yellow, var(--muted)); }
+.sqlnb .error-title { font-weight: 600; }
+.sqlnb .error-msg, .sqlnb .error-sql { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: var(--mono-size); }
+.sqlnb .error-sql { padding: 6px 8px; border-radius: 4px; background: var(--vscode-textCodeBlock-background); color: var(--muted); }
+
+/* Value viewer */
+.sqlnb .viewer {
+  margin-top: 6px; border: 1px solid var(--b); border-radius: var(--r); background: var(--vscode-editorWidget-background);
+  box-shadow: 0 2px 10px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.2));
+}
+.sqlnb .viewer-head { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-bottom: 1px solid var(--b); }
+.sqlnb .viewer pre { margin: 0; padding: 10px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: var(--mono-size); }
+.sqlnb .viewer pre.null { color: var(--muted); font-style: italic; }
+
+/* Chart */
+.sqlnb .chart { border: 1px solid var(--b); border-radius: var(--r); background: var(--vscode-editor-background); }
+.sqlnb .chart-bar { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--b); flex-wrap: wrap; }
+.sqlnb .chart-bar .seg button { padding: 0 7px; }
+.sqlnb .pick { display: inline-flex; align-items: center; gap: 5px; position: relative; }
+.sqlnb .pick > span { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+.sqlnb .pick select, .sqlnb .ybtn {
+  height: 24px; max-width: 220px; padding: 0 6px; font: inherit; border-radius: var(--r);
+  color: var(--vscode-dropdown-foreground); background: var(--vscode-dropdown-background); border: 1px solid var(--vscode-dropdown-border, var(--b));
+}
+.sqlnb .ybtn { display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlnb .ymenu .menu { top: 28px; left: 18px; }
+.sqlnb .menu-item.check input { margin: 0; }
+.sqlnb .chart-canvas { position: relative; padding: 10px 12px 8px; }
+
+/* AI */
+.sqlnb.ai {
+  border: 1px solid var(--b); border-left: 3px solid var(--vscode-charts-purple, var(--vscode-focusBorder)); border-radius: var(--r);
+  background: color-mix(in srgb, var(--vscode-charts-purple, #b180d7) 5%, var(--vscode-editor-background));
+  padding: 6px 12px 10px;
+}
+.sqlnb.ai.error { border-left-color: var(--vscode-errorForeground); }
+.sqlnb.ai.error.setup { border-left-color: var(--vscode-focusBorder); }
+.sqlnb .ai-head { display: flex; align-items: center; gap: 7px; min-height: 26px; }
+.sqlnb .ai-head > .codicon-sparkle { color: var(--vscode-charts-purple, var(--vscode-textLink-foreground)); }
+.sqlnb .ai-title { font-weight: 600; }
+.sqlnb .ai-body { line-height: 1.55; font-size: 13px; overflow-wrap: anywhere; }
+.sqlnb .ai-body > :first-child { margin-top: 2px; }
+.sqlnb .ai-body > :last-child { margin-bottom: 0; }
+.sqlnb .ai-body p { margin: 6px 0; }
+.sqlnb .ai-body ul, .sqlnb .ai-body ol { margin: 4px 0 8px; padding-left: 20px; }
+.sqlnb .ai-body li { margin: 2px 0; }
+.sqlnb .ai-body code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-radius: 3px; background: var(--vscode-textCodeBlock-background); }
+.sqlnb .ai-body pre { padding: 8px 10px; border-radius: 4px; background: var(--vscode-textCodeBlock-background); overflow: auto; }
+.sqlnb .ai-body pre code { padding: 0; background: none; color: var(--vscode-editor-foreground, inherit); }
+.sqlnb .ai-body table { border-collapse: collapse; margin: 6px 0; }
+.sqlnb .ai-body th, .sqlnb .ai-body td { border: 1px solid var(--b); padding: 3px 8px; }
+.sqlnb .ai-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.sqlnb .ai-skeleton { display: flex; flex-direction: column; gap: 7px; padding: 6px 0 2px; }
+.sqlnb .ai-skeleton span { height: 10px; border-radius: 4px; background: linear-gradient(90deg, var(--hover) 0%, color-mix(in srgb, var(--vscode-foreground) 12%, transparent) 50%, var(--hover) 100%); background-size: 200% 100%; animation: sqlnb-shimmer 1.4s infinite; }
+.sqlnb .ai-skeleton span:nth-child(1) { width: 70%; }
+.sqlnb .ai-skeleton span:nth-child(2) { width: 92%; }
+.sqlnb .ai-skeleton span:nth-child(3) { width: 55%; }
+@keyframes sqlnb-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sqlnb .ai-skeleton span { animation: none; }
+  .sqlnb .codicon-modifier-spin { animation: none; }
+}

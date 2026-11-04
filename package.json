@@ -1,0 +1,682 @@
+{
+  "name": "sql-notebook",
+  "displayName": "SQL Notebook",
+  "description": "Notebooks for SQL: MySQL, PostgreSQL, SQL Server, built-in SQLite and DuckDB, with a fast results grid, charts and AI that explains and fixes your queries.",
+  "version": "1.0.0",
+  "publisher": "kgptalkie",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e2430",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Notebooks",
+    "Data Science",
+    "Visualization",
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "sql",
+    "notebook",
+    "mysql",
+    "postgres",
+    "sqlite",
+    "duckdb",
+    "mssql",
+    "database",
+    "ai",
+    "chart"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kgptalkie/sql-notebook"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onNotebook:sqlnb"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Queries only run in trusted workspaces."
+    }
+  },
+  "contributes": {
+    "notebooks": [
+      {
+        "type": "sqlnb",
+        "displayName": "SQL Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.sqlnb"
+          }
+        ]
+      }
+    ],
+    "notebookRenderer": [
+      {
+        "id": "sqlnb.renderer",
+        "displayName": "SQL Notebook Results",
+        "entrypoint": "./dist/renderer.js",
+        "mimeTypes": [
+          "application/vnd.sqlnotebook.result+json",
+          "application/vnd.sqlnotebook.ai+json",
+          "application/vnd.sqlnotebook.error+json"
+        ],
+        "requiresMessaging": "optional"
+      }
+    ],
+    "languages": [
+      {
+        "id": "sqlnb-ai",
+        "aliases": [
+          "AI Prompt"
+        ],
+        "extensions": []
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sqlNotebook",
+          "title": "SQL Notebook",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "sqlNotebook": [
+        {
+          "id": "sqlNotebook.connections",
+          "name": "Connections",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "sqlNotebook.connections",
+        "contents": "Connect to a database to get started.\n[Add Connection](command:sqlNotebook.addConnection)\n[Open Sample Notebook](command:sqlNotebook.openSample)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "sqlNotebook.newNotebook",
+        "title": "New SQL Notebook",
+        "category": "SQL Notebook",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "sqlNotebook.openSample",
+        "title": "Open Sample Notebook",
+        "category": "SQL Notebook",
+        "icon": "$(book)"
+      },
+      {
+        "command": "sqlNotebook.addConnection",
+        "title": "Add Connection",
+        "category": "SQL Notebook",
+        "icon": "$(add)"
+      },
+      {
+        "command": "sqlNotebook.editConnection",
+        "title": "Edit Connection",
+        "category": "SQL Notebook",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "sqlNotebook.duplicateConnection",
+        "title": "Duplicate Connection",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.deleteConnection",
+        "title": "Delete Connection",
+        "category": "SQL Notebook",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "sqlNotebook.connect",
+        "title": "Connect",
+        "category": "SQL Notebook",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "sqlNotebook.disconnect",
+        "title": "Disconnect",
+        "category": "SQL Notebook",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "sqlNotebook.refresh",
+        "title": "Refresh",
+        "category": "SQL Notebook",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "sqlNotebook.newNotebookFor",
+        "title": "New Notebook",
+        "category": "SQL Notebook",
+        "icon": "$(notebook)"
+      },
+      {
+        "command": "sqlNotebook.selectTop",
+        "title": "Select Top 100",
+        "category": "SQL Notebook",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sqlNotebook.describeTable",
+        "title": "Describe Table",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.copyName",
+        "title": "Copy Name",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.selectNotebookConnection",
+        "title": "Select Connection",
+        "category": "SQL Notebook",
+        "icon": "$(database)"
+      },
+      {
+        "command": "sqlNotebook.selectCellConnection",
+        "title": "Change Cell Connection",
+        "category": "SQL Notebook",
+        "icon": "$(database)"
+      },
+      {
+        "command": "sqlNotebook.configureAI",
+        "title": "Configure AI",
+        "category": "SQL Notebook",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "sqlNotebook.explainCell",
+        "title": "Explain with AI",
+        "category": "SQL Notebook",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "sqlNotebook.optimizeCell",
+        "title": "Optimize with AI",
+        "category": "SQL Notebook",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "sqlNotebook.insertAiCell",
+        "title": "AI Cell",
+        "category": "SQL Notebook",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "sqlNotebook.variables",
+        "title": "Variables",
+        "category": "SQL Notebook",
+        "icon": "$(symbol-variable)"
+      },
+      {
+        "command": "sqlNotebook.exportHtml",
+        "title": "Export as HTML",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.exportPdf",
+        "title": "Export as PDF",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.exportMarkdown",
+        "title": "Export as Markdown",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.convertSqlFile",
+        "title": "Open as SQL Notebook",
+        "category": "SQL Notebook"
+      },
+      {
+        "command": "sqlNotebook.openWalkthrough",
+        "title": "Get Started",
+        "category": "SQL Notebook"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "sqlNotebook.export",
+        "label": "Export",
+        "icon": "$(export)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "sqlNotebook.addConnection",
+          "when": "view == sqlNotebook.connections",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sqlNotebook.newNotebook",
+          "when": "view == sqlNotebook.connections",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sqlNotebook.configureAI",
+          "when": "view == sqlNotebook.connections",
+          "group": "navigation@3"
+        },
+        {
+          "command": "sqlNotebook.refresh",
+          "when": "view == sqlNotebook.connections",
+          "group": "navigation@4"
+        },
+        {
+          "command": "sqlNotebook.openSample",
+          "when": "view == sqlNotebook.connections",
+          "group": "more@1"
+        },
+        {
+          "command": "sqlNotebook.openWalkthrough",
+          "when": "view == sqlNotebook.connections",
+          "group": "more@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "sqlNotebook.newNotebookFor",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection/",
+          "group": "inline@1"
+        },
+        {
+          "command": "sqlNotebook.connect",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection.*offline/",
+          "group": "1_conn@1"
+        },
+        {
+          "command": "sqlNotebook.disconnect",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection.*online/",
+          "group": "1_conn@2"
+        },
+        {
+          "command": "sqlNotebook.refresh",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection/",
+          "group": "1_conn@3"
+        },
+        {
+          "command": "sqlNotebook.newNotebookFor",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection/",
+          "group": "2_nb@1"
+        },
+        {
+          "command": "sqlNotebook.editConnection",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection.*user/",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "sqlNotebook.duplicateConnection",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection.*user/",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "sqlNotebook.deleteConnection",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^connection.*user/",
+          "group": "3_edit@3"
+        },
+        {
+          "command": "sqlNotebook.selectTop",
+          "when": "view == sqlNotebook.connections && viewItem == table",
+          "group": "inline@1"
+        },
+        {
+          "command": "sqlNotebook.selectTop",
+          "when": "view == sqlNotebook.connections && viewItem == table",
+          "group": "1@1"
+        },
+        {
+          "command": "sqlNotebook.describeTable",
+          "when": "view == sqlNotebook.connections && viewItem == table",
+          "group": "1@2"
+        },
+        {
+          "command": "sqlNotebook.copyName",
+          "when": "view == sqlNotebook.connections && viewItem =~ /^(table|column|database)$/",
+          "group": "2@1"
+        }
+      ],
+      "notebook/toolbar": [
+        {
+          "command": "sqlNotebook.insertAiCell",
+          "when": "notebookType == sqlnb",
+          "group": "navigation/add@1"
+        },
+        {
+          "command": "sqlNotebook.variables",
+          "when": "notebookType == sqlnb",
+          "group": "navigation@50"
+        },
+        {
+          "submenu": "sqlNotebook.export",
+          "when": "notebookType == sqlnb",
+          "group": "navigation@51"
+        }
+      ],
+      "sqlNotebook.export": [
+        {
+          "command": "sqlNotebook.exportHtml",
+          "group": "1@1"
+        },
+        {
+          "command": "sqlNotebook.exportPdf",
+          "group": "1@2"
+        },
+        {
+          "command": "sqlNotebook.exportMarkdown",
+          "group": "1@3"
+        }
+      ],
+      "notebook/cell/title": [
+        {
+          "command": "sqlNotebook.explainCell",
+          "when": "notebookType == sqlnb && notebookCellType == code",
+          "group": "inline@1"
+        },
+        {
+          "command": "sqlNotebook.optimizeCell",
+          "when": "notebookType == sqlnb && notebookCellType == code",
+          "group": "sqlnb@1"
+        },
+        {
+          "command": "sqlNotebook.selectCellConnection",
+          "when": "notebookType == sqlnb && notebookCellType == code",
+          "group": "sqlnb@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "sqlNotebook.convertSqlFile",
+          "when": "resourceExtname == .sql",
+          "group": "navigation@90"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "sqlNotebook.convertSqlFile",
+          "when": "resourceExtname == .sql"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "sqlNotebook.editConnection",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.duplicateConnection",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.deleteConnection",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.connect",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.disconnect",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.newNotebookFor",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.selectTop",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.describeTable",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.copyName",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.selectCellConnection",
+          "when": "false"
+        },
+        {
+          "command": "sqlNotebook.explainCell",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.optimizeCell",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.insertAiCell",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.variables",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.selectNotebookConnection",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.exportHtml",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.exportPdf",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.exportMarkdown",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.convertSqlFile",
+          "when": "resourceExtname == .sql"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SQL Notebook",
+      "properties": {
+        "sqlNotebook.results.maxRows": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1,
+          "order": 1,
+          "description": "Most rows kept for each result. The grid stays fast even at 100,000 rows."
+        },
+        "sqlNotebook.queryTimeoutSeconds": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "order": 2,
+          "description": "Stop a query after this many seconds. 0 means no limit."
+        },
+        "sqlNotebook.saveResults": {
+          "type": "boolean",
+          "default": false,
+          "order": 3,
+          "description": "Save results inside the .sqlnb file so they show when the notebook is reopened (up to 200 rows per result)."
+        },
+        "sqlNotebook.confirmDestructive": {
+          "type": "string",
+          "enum": [
+            "production",
+            "always",
+            "never"
+          ],
+          "default": "production",
+          "order": 4,
+          "enumDescriptions": [
+            "Ask first on connections tagged Production.",
+            "Ask first on every connection.",
+            "Never ask."
+          ],
+          "description": "Ask before running DROP, TRUNCATE, or DELETE/UPDATE without WHERE."
+        },
+        "sqlNotebook.ai.provider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "anthropic",
+            "openrouter",
+            "ollama",
+            "custom"
+          ],
+          "default": "openai",
+          "order": 10,
+          "enumDescriptions": [
+            "OpenAI",
+            "Anthropic (Claude)",
+            "OpenRouter",
+            "Ollama (local, no key needed)",
+            "Any OpenAI-compatible API"
+          ],
+          "description": "AI provider. Run \"SQL Notebook: Configure AI\" to set it up with your key."
+        },
+        "sqlNotebook.ai.model": {
+          "type": "string",
+          "default": "",
+          "order": 11,
+          "description": "Model ID. Leave empty to use the provider's default."
+        },
+        "sqlNotebook.ai.baseUrl": {
+          "type": "string",
+          "default": "",
+          "order": 12,
+          "description": "API base URL for Ollama or a custom provider, for example http://localhost:11434/v1."
+        },
+        "sqlNotebook.ai.allowResultData": {
+          "type": "boolean",
+          "default": false,
+          "order": 13,
+          "description": "Send result rows to the AI for Explain Result without asking. Off by default: only the schema and your SQL are sent. A local model (Ollama or a custom API on localhost) never asks, since rows stay on this computer."
+        },
+        "sqlNotebook.ai.runGeneratedSql": {
+          "type": "boolean",
+          "default": false,
+          "order": 14,
+          "description": "Run SQL from an AI cell right after it is generated."
+        },
+        "sqlNotebook.export.maxRows": {
+          "type": "number",
+          "default": 500,
+          "minimum": 1,
+          "order": 20,
+          "description": "Most rows per result written to exported HTML, PDF and Markdown."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "sqlNotebook.start",
+        "title": "Get started with SQL Notebook",
+        "description": "Query any database in a notebook, in four short steps.",
+        "steps": [
+          {
+            "id": "sample",
+            "title": "Open the sample notebook",
+            "description": "A ready-made notebook on a built-in SQLite database. Nothing to install.\n[Open Sample](command:sqlNotebook.openSample)",
+            "media": {
+              "markdown": "media/walkthrough/sample.md"
+            },
+            "completionEvents": [
+              "onCommand:sqlNotebook.openSample"
+            ]
+          },
+          {
+            "id": "connect",
+            "title": "Connect your database",
+            "description": "MySQL, PostgreSQL, SQL Server, SQLite or DuckDB, with SSL and SSH tunnels.\n[Add Connection](command:sqlNotebook.addConnection)",
+            "media": {
+              "markdown": "media/walkthrough/connect.md"
+            },
+            "completionEvents": [
+              "onCommand:sqlNotebook.addConnection"
+            ]
+          },
+          {
+            "id": "run",
+            "title": "Run, sort, chart",
+            "description": "Press Ctrl+Enter to run a cell. Sort and filter in the grid, then switch to Chart.\n[New Notebook](command:sqlNotebook.newNotebook)",
+            "media": {
+              "markdown": "media/walkthrough/run.md"
+            },
+            "completionEvents": [
+              "onCommand:sqlNotebook.newNotebook"
+            ]
+          },
+          {
+            "id": "ai",
+            "title": "Turn on AI",
+            "description": "Use OpenAI, Anthropic, OpenRouter, Ollama or your own API to explain, fix and write SQL.\n[Configure AI](command:sqlNotebook.configureAI)",
+            "media": {
+              "markdown": "media/walkthrough/ai.md"
+            },
+            "completionEvents": [
+              "onCommand:sqlNotebook.configureAI"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "vitest run",
+    "sample": "node scripts/make-sample.mjs",
+    "package": "npm run build -- --production && vsce package --target win32-x64",
+    "vscode:prepublish": "npm run build -- --production"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^2.0.0-r.1"
+  },
+  "devDependencies": {
+    "@langchain/anthropic": "^1.6.0",
+    "@langchain/core": "^1.3.4",
+    "@langchain/ollama": "^1.3.0",
+    "@langchain/openai": "^1.8.0",
+    "@langchain/openrouter": "^0.4.21",
+    "@types/mssql": "^12.3.0",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ssh2": "^1.15.6",
+    "@types/vscode": "^1.104.0",
+    "@types/vscode-notebook-renderer": "^1.72.4",
+    "@vscode/codicons": "^0.0.46-24",
+    "@vscode/vsce": "^4.1.0",
+    "chart.js": "^4.6.1",
+    "dompurify": "^3.4.17",
+    "esbuild": "^0.28.2",
+    "marked": "^18.1.3",
+    "mssql": "^12.7.13",
+    "mysql2": "^3.24.6",
+    "ovsx": "^1.3.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sql-formatter": "^15.9.0",
+    "ssh2": "^1.17.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

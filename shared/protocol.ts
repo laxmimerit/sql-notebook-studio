@@ -1,0 +1,98 @@
+// Types shared by the extension host and the notebook renderer.
+
+export const RESULT_MIME = 'application/vnd.sqlnotebook.result+json';
+export const AI_MIME = 'application/vnd.sqlnotebook.ai+json';
+
+export type ColumnKind = 'number' | 'string' | 'bool' | 'date' | 'json' | 'binary' | 'other';
+
+export interface Column {
+  name: string;
+  type: string;
+  kind: ColumnKind;
+}
+
+/** Binary values travel as a short hex preview plus the full length. */
+export interface BinaryValue {
+  $bin: string;
+  len: number;
+}
+
+export type Cell = string | number | boolean | null | BinaryValue | unknown[] | Record<string, unknown>;
+
+export interface StatementResult {
+  sql: string;
+  columns: Column[];
+  rows: Cell[][];
+  /** True when the statement returned rows (a SELECT). False for commands. */
+  hasRows: boolean;
+  truncated: boolean;
+  affected?: number;
+  durationMs: number;
+  messages?: string[];
+}
+
+export type ChartType = 'bar' | 'line' | 'area' | 'scatter' | 'pie';
+
+export interface ChartConfig {
+  type: ChartType;
+  x: string;
+  y: string[];
+  stacked?: boolean;
+  horizontal?: boolean;
+}
+
+export interface QueryError {
+  message: string;
+  code?: string;
+  statementIndex: number;
+  statementCount: number;
+  sql: string;
+  line?: number;
+}
+
+export interface ResultPayload {
+  v: 1;
+  /** Stable id of the output, also stored in the output's metadata as sqlnbId. */
+  id?: string;
+  connection: string;
+  driver: string;
+  results: StatementResult[];
+  running?: { index: number; count: number };
+  error?: QueryError;
+  chart?: ChartConfig;
+  view?: 'table' | 'chart';
+  aiEnabled: boolean;
+  maxRows: number;
+}
+
+export type AiKind = 'explain' | 'optimize' | 'fix' | 'result' | 'generate';
+
+export interface AiPayload {
+  v: 1;
+  id?: string;
+  kind: AiKind;
+  status: 'streaming' | 'done' | 'error';
+  markdown: string;
+  sql?: string;
+  model: string;
+  note?: string;
+}
+
+// Messages the renderer sends to the extension.
+export type RendererMessage =
+  | { type: 'copy'; text: string }
+  | { type: 'export'; format: 'csv' | 'json'; name: string; columns: Column[]; rows: Cell[][] }
+  | { type: 'savePng'; dataUrl: string }
+  | { type: 'setChart'; outputId: string; chart?: ChartConfig; view: 'table' | 'chart' }
+  | { type: 'fix'; outputId: string }
+  | { type: 'explainResult'; outputId: string; resultIndex: number }
+  | { type: 'applySql'; outputId: string; sql: string }
+  | { type: 'runCell'; outputId: string }
+  | { type: 'dismissAi'; outputId: string }
+  | { type: 'configureAi' }
+  | { type: 'openSetting'; key: string };
+
+/** AI suggestions that change the schema (like CREATE INDEX) go in a new cell instead of replacing the query. */
+export function isSchemaChange(sql: string): boolean {
+  return /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(create|alter|drop|analyze|vacuum|reindex)\b/i.test(sql);
+}

@@ -31,14 +31,14 @@ jobs:
       contents: read
       id-token: write # lets vsce get a short-lived Marketplace credential
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -58,6 +58,10 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      # The driver tests load the bundled drivers from dist/, so build first.
+      - name: Build
+        run: npm run build
+
       - name: Test
         run: npm test
 
@@ -65,7 +69,7 @@ jobs:
         run: npm run package:all
 
       - name: Keep the packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: vsix/*.vsix

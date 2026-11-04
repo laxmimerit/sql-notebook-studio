@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://vsmarketplacebadges.dev/version-short/kgptalkie.sql-notebook.svg?label=VS%20Marketplace&color=0078d7&logo=visualstudiocode" alt="VS Marketplace version"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://vsmarketplacebadges.dev/installs-short/kgptalkie.sql-notebook.svg?color=2ea44f" alt="Installs"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details"><img src="https://vsmarketplacebadges.dev/rating-star/kgptalkie.sql-notebook.svg?color=f5a623" alt="Rating"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook-studio"><img src="https://vsmarketplacebadges.dev/version-short/kgptalkie.sql-notebook-studio.svg?label=VS%20Marketplace&color=0078d7&logo=visualstudiocode" alt="VS Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook-studio"><img src="https://vsmarketplacebadges.dev/installs-short/kgptalkie.sql-notebook-studio.svg?color=2ea44f" alt="Installs"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook-studio&ssr=false#review-details"><img src="https://vsmarketplacebadges.dev/rating-star/kgptalkie.sql-notebook-studio.svg?color=f5a623" alt="Rating"></a>
   <a href="https://github.com/laxmimerit/sql-notebook-studio/stargazers"><img src="https://img.shields.io/github/stars/laxmimerit/sql-notebook-studio?style=flat&logo=github&color=24292f" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 license"></a>
   <img src="https://img.shields.io/badge/VS%20Code-1.104%2B-007acc?logo=visualstudiocode&logoColor=white" alt="VS Code 1.104 or later">
@@ -58,7 +58,7 @@
 **From the Marketplace:** search for **SQL Notebook Studio** in the Extensions view, or run:
 
 ```bash
-code --install-extension kgptalkie.sql-notebook
+code --install-extension kgptalkie.sql-notebook-studio
 ```
 
 **From a file:** download the `.vsix` for your system, then in VS Code open **Extensions → ··· → Install from VSIX…**
@@ -259,5 +259,5 @@ Third-party software included in the extension is listed in [THIRD-PARTY-NOTICES
 The license covers the code, not the names. "SQL Notebook Studio", "KGP Talkie" and the SQL Notebook Studio logo are not licensed for use by forks. If you publish a fork, give it your own name and logo.
 
 <p align="center">
-  Made by <a href="https://www.youtube.com/kgptalkie">KGP Talkie</a> · If it helps you, please ⭐ the repo and rate it on the <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details">Marketplace</a>.
+  Made by <a href="https://www.youtube.com/kgptalkie">KGP Talkie</a> · If it helps you, please ⭐ the repo and rate it on the <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook-studio&ssr=false#review-details">Marketplace</a>.
 </p>

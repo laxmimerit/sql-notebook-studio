@@ -63,7 +63,7 @@ export function writeNotices(metafiles, file = 'THIRD-PARTY-NOTICES.txt') {
   for (const dir of dirs) {
     if (!existsSync(join(dir, 'package.json'))) continue;
     const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-    if (pkg.name === 'sql-notebook') continue;
+    if (pkg.name === 'sql-notebook-studio') continue;
     const license =
       typeof pkg.license === 'string'
         ? pkg.license

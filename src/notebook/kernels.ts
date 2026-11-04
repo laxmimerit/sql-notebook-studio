@@ -126,7 +126,7 @@ export class Kernels implements vscode.Disposable {
     if (!target) return undefined;
     const editor = vscode.window.visibleNotebookEditors.find((e) => e.notebook === nb);
     if (editor) {
-      await vscode.commands.executeCommand('notebook.selectKernel', { notebookEditor: editor, id: `sqlnb-${target.id}`, extension: 'kgptalkie.sql-notebook' });
+      await vscode.commands.executeCommand('notebook.selectKernel', { notebookEditor: editor, id: `sqlnb-${target.id}`, extension: 'kgptalkie.sql-notebook-studio' });
     }
     return this.controllerFor(nb) ?? this.controllers.get(target.id);
   }

@@ -116,7 +116,7 @@ export function activate(ctx: vscode.ExtensionContext) {
 
   cmd('sqlNotebook.newNotebook', () => newNotebook());
   cmd('sqlNotebook.openSample', openSample);
-  cmd('sqlNotebook.openWalkthrough', () => vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kgptalkie.sql-notebook#sqlNotebook.start', false));
+  cmd('sqlNotebook.openWalkthrough', () => vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kgptalkie.sql-notebook-studio#sqlNotebook.start', false));
   cmd('sqlNotebook.addConnection', () => openConnectionForm(formDeps));
   cmd('sqlNotebook.editConnection', (n?: Node) => {
     const c = connOf(n);

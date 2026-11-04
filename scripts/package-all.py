@@ -4,7 +4,7 @@ The win32-x64 package is built with vsce. Every other platform's package is
 that same file with the DuckDB binding folder swapped and the target updated.
 
 Usage: python scripts/package-all.py [target ...]
-Output: vsix/sql-notebook-<target>-<version>.vsix
+Output: vsix/sql-notebook-studio-<target>-<version>.vsix
 """
 
 import json

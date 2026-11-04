@@ -30,7 +30,7 @@ export const DEFAULT_BASE_URL: Partial<Record<Provider, string>> = {
   ollama: 'http://localhost:11434',
 };
 
-const SITE = { siteUrl: 'https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook', siteName: 'SQL Notebook Studio' };
+const SITE = { siteUrl: 'https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook-studio', siteName: 'SQL Notebook Studio' };
 
 export function createModel(cfg: AiConfig): BaseChatModel {
   const model = cfg.model || DEFAULT_MODELS[cfg.provider];

@@ -672,7 +672,7 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run",
     "sample": "node scripts/make-sample.mjs",
-    "package": "vsce package --target win32-x64 --allow-missing-repository -o vsix/",
+    "package": "vsce package --target win32-x64 --allow-missing-repository --baseImagesUrl https://raw.githubusercontent.com/laxmimerit/sql-notebook-studio/main/ --baseContentUrl https://raw.githubusercontent.com/laxmimerit/sql-notebook-studio/main/ -o vsix/",
     "vscode:prepublish": "npm run build -- --production",
     "package:all": "python scripts/package-all.py"
   },

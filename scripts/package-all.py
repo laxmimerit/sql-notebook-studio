@@ -28,6 +28,8 @@ TARGETS = {
     "darwin-arm64": "darwin-arm64",
 }
 BASE = "win32-x64"
+# README images must be public URLs on the Marketplace; the code repo is private.
+MEDIA = "https://raw.githubusercontent.com/laxmimerit/sql-notebook-studio/main/"
 TYPES = {".so": "application/octet-stream", ".dylib": "application/octet-stream", ".dll": "application/octet-stream", ".node": "application/octet-stream"}
 
 
@@ -44,7 +46,7 @@ def main() -> None:
     out_dir.mkdir(exist_ok=True)
 
     base = out_dir / f"{pkg['name']}-{BASE}-{version}.vsix"
-    sh(f'npx vsce package --target {BASE} --allow-missing-repository -o "{base}"')
+    sh(f'npx vsce package --target {BASE} --allow-missing-repository --baseImagesUrl {MEDIA} --baseContentUrl {MEDIA} -o "{base}"')
 
     with tempfile.TemporaryDirectory() as tmp:
         for target in wanted:

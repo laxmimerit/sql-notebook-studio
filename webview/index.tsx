@@ -49,6 +49,7 @@ function App() {
         setFolders(m.folders);
       } else if (m.type === 'testResult') setStatus({ kind: m.ok ? 'ok' : 'error', text: m.message });
       else if (m.type === 'error') setStatus({ kind: 'error', text: m.message });
+      else if (m.type === 'clipboard') setPaste((p) => (p === '' ? m.text : p));
       else if (m.type === 'browsed') setField(m.field, m.path);
       else if (m.type === 'parsed') {
         setConn((c) => ({ ...c!, ...m.config, port: m.config.port ?? DRIVERS.find((d) => d.id === (m.config.driver ?? c!.driver))?.port }));
@@ -140,7 +141,10 @@ function App() {
       <header>
         <h1>{isNew ? 'New connection' : 'Edit connection'}</h1>
         {!driver.file && (
-          <button type="button" className="link" onClick={() => setPaste(paste === null ? '' : null)}>
+          <button type="button" className="link" onClick={() => {
+              setPaste(paste === null ? '' : null);
+              if (paste === null) vscode.postMessage({ type: 'clipboard' });
+            }}>
             <i className="codicon codicon-clippy" /> Paste connection string
           </button>
         )}

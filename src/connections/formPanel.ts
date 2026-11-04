@@ -97,6 +97,12 @@ export function openConnectionForm(deps: FormDeps, existing?: ConnectionConfig) 
           post({ type: 'parsed', config: parsed.config, password: parsed.password });
           break;
         }
+        case 'clipboard': {
+          // Pre-fill the paste box when the clipboard already holds a connection string.
+          const text = (await vscode.env.clipboard.readText()).trim();
+          if (text.length < 2000 && /^[a-z][a-z0-9+.-]*:\/\/|(^|;)\s*(server|data source|host)\s*=/i.test(text)) post({ type: 'clipboard', text });
+          break;
+        }
         case 'cancel':
           panel.dispose();
           break;

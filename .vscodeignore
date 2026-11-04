@@ -21,3 +21,4 @@ base.vsix
 vsix/**
 node_modules/**/*.d.ts
 node_modules/**/*.map
+media/readme/**

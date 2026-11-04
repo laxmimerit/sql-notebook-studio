@@ -78,6 +78,8 @@ Or from a terminal, after downloading: `code --install-extension sql-notebook-st
 
 All versions are on the [Releases page](https://github.com/laxmimerit/sql-notebook-studio/releases).
 
+**Cursor, Windsurf, VSCodium and other VS Code-based editors:** install the file above the same way (Command Palette → **Extensions: Install from VSIX…**). The extension isn't on Open VSX, so their Extensions search won't find it.
+
 ## Quick start
 
 1. Open the **SQL Notebook Studio** view in the activity bar.

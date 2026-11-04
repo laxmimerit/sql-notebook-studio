@@ -1,20 +1,21 @@
-# Publishes the 8 platform packages to three places:
-#   - the VS Code Marketplace (VS Code),
-#   - Open VSX (Cursor, Windsurf, VSCodium and other VS Code-based editors),
-#   - a GitHub Release, for people who install from a file.
+# Publishes the 8 platform packages to two places:
+#   - the VS Code Marketplace, for VS Code,
+#   - a GitHub Release, for installing from a file. Cursor, Windsurf, VSCodium
+#     and other VS Code-based editors install from here: the extension is not
+#     on Open VSX, by choice.
 #
 # Run it by pushing a version tag that matches package.json, for example:
 #   git tag v1.0.1 && git push origin v1.0.1
-# A tag push publishes everywhere. A manual run from the Actions tab (Run
-# workflow) has a tick box per destination, for redoing one that failed; it
-# uses the version in package.json.
+# A tag push publishes to both. A manual run from the Actions tab (Run
+# workflow) has a tick box for each, for redoing one that failed; it uses the
+# version in package.json.
 #
 # Each GitHub Release also carries copies without the version in the name, so
 # links like .../releases/latest/download/sql-notebook-studio-win32-x64.vsix
 # always give the newest version.
 #
-# No token is stored anywhere: both the Marketplace and Open VSX trust this
-# workflow through Trusted Publishing (OpenID Connect). Their settings name
+# No token is stored anywhere: the Marketplace trusts this workflow through
+# Trusted Publishing (OpenID Connect). The policy on the publisher page names
 # this repository and this file, publish.yml. Renaming the file breaks it.
 
 name: Publish to Marketplace
@@ -26,10 +27,6 @@ on:
     inputs:
       marketplace:
         description: VS Code Marketplace
-        type: boolean
-        default: true
-      open_vsx:
-        description: Open VSX (Cursor, Windsurf, VSCodium)
         type: boolean
         default: true
       github_release:
@@ -147,10 +144,3 @@ jobs:
             gh release create "$tag" vsix/*.vsix latest/*.vsix \
               --verify-tag --title "SQL Notebook Studio $v" --notes-file notes.md
           fi
-
-      # Open VSX is the store Cursor, Windsurf, VSCodium and other VS Code-based
-      # editors use. --skip-duplicate makes a rerun safe.
-      - name: Publish to Open VSX
-        if: github.event_name == 'push' || inputs.open_vsx
-        shell: bash
-        run: npx --yes ovsx@1.3.0 publish --trusted-publishing --skip-duplicate --packagePath vsix/*.vsix

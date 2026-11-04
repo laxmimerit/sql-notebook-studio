@@ -5,6 +5,7 @@ or the database you use. If nothing here helps,
 [open an issue](https://github.com/laxmimerit/sql-notebook-studio/issues/new/choose)
 with the exact error message.
 
+- [Installing](#installing)
 - [How connections work](#how-connections-work)
 - [All databases](#all-databases)
 - [SQL Server](#sql-server)
@@ -14,6 +15,55 @@ with the exact error message.
 - [Autocomplete and capital keywords](#autocomplete-and-capital-keywords)
 - [AI](#ai)
 - [Reporting a bug](#reporting-a-bug)
+
+## Installing
+
+### Cursor, Windsurf, VSCodium or another VS Code-based editor can't find it
+
+These editors don't use Microsoft's Marketplace; they search Open VSX, and
+SQL Notebook Studio is not published there. Install it from a file instead:
+
+1. Download the package for your system from the
+   [latest release](https://github.com/laxmimerit/sql-notebook-studio/releases/latest)
+   (the table in the [README](README.md#install) says which one).
+2. In the editor, open the Command Palette and run **Extensions: Install from
+   VSIX…**, or drag the file onto the Extensions view.
+
+It works the same as in VS Code (tested in Cursor). A file install doesn't
+update itself: download the new file when a new version comes out.
+
+### "The extension is not available in Visual Studio Code for the … platform"
+
+The Marketplace checks each platform's package separately after a release, so
+for a few hours a new version can be installable on some systems and not yet on
+yours. Wait and try again, or install the file from the
+[latest release](https://github.com/laxmimerit/sql-notebook-studio/releases/latest).
+
+### Which file is mine?
+
+- **Windows:** `win32-x64` on almost every PC; `win32-arm64` only on ARM
+  laptops (for example Snapdragon). Settings → System → About → System type.
+- **Mac:** Apple menu → About This Mac. "Chip: Apple M…" means `darwin-arm64`;
+  "Processor: Intel" means `darwin-x64`.
+- **Linux:** `linux-x64`, or `linux-arm64` on ARM (`uname -m` prints
+  `aarch64`). Alpine Linux uses the `alpine-` files.
+
+Each file carries the DuckDB engine built for one system. If the editor says
+the extension isn't compatible with your platform, you have the wrong file.
+
+### `code: command not found`
+
+The terminal command isn't set up. On a Mac, open the Command Palette in VS
+Code and run **Shell Command: Install 'code' command in PATH**, then open a new
+terminal. On Windows, reinstall VS Code with "Add to PATH" ticked, or use
+**Install from VSIX…** inside VS Code instead.
+
+### After uninstalling, VS Code keeps asking where to save a notebook
+
+Open notebooks that were never saved stay open when the extension is removed,
+and VS Code asks to save each one. Click **Cancel**, then **Restart Anyway**
+when VS Code asks to restart its extensions. Save the notebooks you want to
+keep before uninstalling.
 
 ## How connections work
 

@@ -21,6 +21,9 @@ export class Kernels implements vscode.Disposable {
   private order = new Map<string, number>();
   private disposables: vscode.Disposable[] = [];
   private sessionValues = new Map<string, Record<string, string>>();
+  private readonly ranOk = new vscode.EventEmitter<string>();
+  /** Fires with a connection id after a cell ran on it without error, so the explorer can recheck it. */
+  readonly onDidRunOk = this.ranOk.event;
   ai!: AiService;
 
   constructor(
@@ -55,6 +58,7 @@ export class Kernels implements vscode.Disposable {
   dispose() {
     this.controllers.forEach((c) => c.dispose());
     this.disposables.forEach((d) => d.dispose());
+    this.ranOk.dispose();
   }
 
   private sync() {
@@ -322,6 +326,7 @@ export class Kernels implements vscode.Disposable {
         } else throw e;
       }
       if (/^\s*(use|create|drop|alter|attach|detach|set\s+search_path)\b/im.test(text)) this.schema.invalidate(conn.id);
+      this.ranOk.fire(conn.id);
       return true;
     } catch (e) {
       const index = e instanceof QueryFailure ? e.statementIndex : payload.running?.index ?? 0;

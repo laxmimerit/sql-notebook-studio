@@ -1,8 +1,8 @@
 // Caches schema lookups (containers, tables, columns) for the explorer,
 // autocomplete and the AI. Entries expire after a few minutes.
 
-import type { ColumnInfo, ConnectionConfig, TableInfo } from '../db/types';
-import { ownerFor, type SessionManager } from '../db/manager';
+import type { ColumnInfo, ConnectionConfig, Session, TableInfo } from '../db/types';
+import { isConnectionLost, isMemory, ownerFor, type SessionManager } from '../db/manager';
 
 const TTL = 5 * 60_000;
 
@@ -29,24 +29,37 @@ export class SchemaCache {
     for (const k of [...this.map.keys()]) if (k.startsWith(connId + '|')) this.map.delete(k);
   }
 
-  private session(conn: ConnectionConfig) {
-    return this.manager.get(ownerFor(conn), conn);
+  /**
+   * Runs a lookup on the explorer's own session. If that session has died (the
+   * server restarted, the PC slept, the network dropped), it is closed and
+   * opened again once, the same way notebook cells recover.
+   */
+  private async withSession<T>(conn: ConnectionConfig, fn: (s: Session) => Promise<T>): Promise<T> {
+    const owner = ownerFor(conn);
+    try {
+      return await fn(await this.manager.get(owner, conn));
+    } catch (e) {
+      // In-memory databases live in their session; never drop those.
+      if (isMemory(conn) || !isConnectionLost(e)) throw e;
+      await this.manager.drop(owner, conn.id);
+      return fn(await this.manager.get(owner, conn));
+    }
   }
 
   containers(conn: ConnectionConfig): Promise<string[] | undefined> {
-    return this.cached(`${conn.id}|containers`, async () => (await this.session(conn)).listContainers());
+    return this.cached(`${conn.id}|containers`, () => this.withSession(conn, (s) => s.listContainers()));
   }
 
   defaultContainer(conn: ConnectionConfig): Promise<string | undefined> {
-    return this.cached(`${conn.id}|default`, async () => (await this.session(conn)).defaultContainer());
+    return this.cached(`${conn.id}|default`, () => this.withSession(conn, (s) => s.defaultContainer()));
   }
 
   tables(conn: ConnectionConfig, container?: string): Promise<TableInfo[]> {
-    return this.cached(`${conn.id}|tables|${container ?? ''}`, async () => (await this.session(conn)).listTables(container));
+    return this.cached(`${conn.id}|tables|${container ?? ''}`, () => this.withSession(conn, (s) => s.listTables(container)));
   }
 
   columns(conn: ConnectionConfig, table: string, container?: string): Promise<ColumnInfo[]> {
-    return this.cached(`${conn.id}|cols|${container ?? ''}|${table}`, async () => (await this.session(conn)).listColumns(table, container));
+    return this.cached(`${conn.id}|cols|${container ?? ''}|${table}`, () => this.withSession(conn, (s) => s.listColumns(table, container)));
   }
 
   /** Compact schema text for AI prompts. Tables named in `focus` come first. */

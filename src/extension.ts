@@ -47,6 +47,8 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.languages.registerDocumentFormattingEditProvider({ language: SQL_LANGUAGE, scheme: 'vscode-notebook-cell' }, { provideDocumentFormattingEdits: (doc) => formatCell(doc, kernels) }),
     vscode.notebooks.registerNotebookCellStatusBarItemProvider(NOTEBOOK_TYPE, new CellStatus()),
     manager.onDidChange((id) => schema.invalidate(id)),
+    vscode.window.registerFileDecorationProvider(tree),
+    kernels.onDidRunOk((id) => tree.recheck(id)),
     new AutoUppercase(kernels, schema),
   );
 

@@ -9,7 +9,7 @@ First release.
 - `.sqlnb` files have their own icon. One "SQL" cell type works for every database; the connection picks the dialect.
 - MySQL / MariaDB, PostgreSQL, SQL Server, plus built-in SQLite and DuckDB.
 - SSL/TLS and SSH tunnels. Passwords are kept in VS Code's secret storage.
-- Connection explorer with tables and columns, Select Top 100 and Describe.
+- Connection explorer with tables and columns, Select Top 100 and Describe. A green ● marks connected connections. If a connection drops (server restart, sleep), the explorer reconnects on its own, and a cell that runs fine on a connection clears its "Can't connect" message.
 - SQL keywords turn into capitals as you type, per database (keyword lists from sql-formatter). Names, strings and comments are left alone. Setting `sqlNotebook.editor.uppercaseKeywords`, on by default.
 - The notebook toolbar shows the database type next to the connection, for example "Sample Shop · SQLite".
 - Autocomplete for tables, columns, aliases and keywords. Fuzzy and case-blind (`slt` finds SELECT); keywords are inserted in uppercase (or lowercase, or as typed, in settings).

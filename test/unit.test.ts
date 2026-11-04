@@ -7,6 +7,7 @@ import { formatDate, kindFromType, toCell } from '../src/db/values';
 import { findVariables, substitute, resolveEnv } from '../src/util/variables';
 import { extractSql, stripThinking } from '../src/ai/prompts';
 import { EXTRA, KEYWORDS, applyCase, keywordCase } from '../src/schema/keywords';
+import { ENDS_WORD, dialectWords, wordToCapitalise } from '../src/schema/autoCase';
 
 const sqls = (text: string, d: Parameters<typeof splitStatements>[1]) => splitStatements(text, d).map((s) => s.sql);
 
@@ -209,5 +210,83 @@ describe('autocomplete keyword case', () => {
   it('lists SELECT for every driver', () => {
     expect(KEYWORDS).toContain('SELECT');
     expect(Object.keys(EXTRA)).toEqual(['mysql', 'postgres', 'mssql', 'sqlite', 'duckdb']);
+  });
+});
+
+describe('capitalise keywords as you type', () => {
+  // The word that ends where the text ends, after typing `typed` there.
+  const cap = (text: string, driver: Parameters<typeof wordToCapitalise>[2], typed = ' ', names: string[] = []) =>
+    wordToCapitalise(text, text.length, driver, typed, new Set(names))?.upper;
+
+  it('uses each database keyword list from sql-formatter', () => {
+    expect(dialectWords('mssql').keywords.has('TOP')).toBe(true);
+    expect(dialectWords('mysql').keywords.has('TOP')).toBe(false);
+    expect(dialectWords('postgres').keywords.has('RETURNING')).toBe(true);
+    expect(dialectWords('duckdb').keywords.has('QUALIFY')).toBe(true);
+    for (const d of ['mysql', 'postgres', 'mssql', 'sqlite', 'duckdb'] as const) {
+      expect(dialectWords(d).keywords.has('SELECT')).toBe(true);
+      expect(dialectWords(d).keywords.has('CASE')).toBe(true);
+    }
+  });
+  it('capitalises keywords of the connected database only', () => {
+    expect(cap('select', 'mysql')).toBe('SELECT');
+    expect(cap('select * from employees where', 'postgres')).toBe('WHERE');
+    expect(cap('select top', 'mssql')).toBe('TOP');
+    expect(cap('select top', 'mysql')).toBeUndefined();
+    expect(cap('select * from t limit', 'sqlite')).toBe('LIMIT');
+    expect(cap('select * from t limit', 'mssql')).toBeUndefined();
+    expect(cap('insert into t values (1) returning', 'postgres')).toBe('RETURNING');
+    expect(cap('select a from t qualify', 'duckdb')).toBe('QUALIFY');
+    expect(cap('select * from t order by', 'mysql', '\n')).toBe('BY');
+    expect(cap('select * from (select', 'mysql')).toBe('SELECT');
+    expect(cap('select case when a then 1 else', 'mssql')).toBe('ELSE');
+    expect(cap('drop table if', 'mysql')).toBe('IF');
+    expect(cap('create view v as select', 'postgres')).toBe('SELECT');
+  });
+  it('capitalises functions and types only where they are used as such', () => {
+    expect(cap('select count', 'mysql', '(')).toBe('COUNT');
+    expect(cap('select count', 'mysql', '()')).toBe('COUNT');
+    expect(cap('select count', 'mysql', ' ')).toBeUndefined();
+    expect(cap('create table t (id int', 'mysql', ',')).toBe('INT');
+    expect(cap('create table t (name varchar', 'postgres', '(')).toBe('VARCHAR');
+  });
+  it('never touches names the user chose', () => {
+    expect(cap('select * from status', 'mysql')).toBeUndefined();
+    expect(cap('select a as name', 'duckdb')).toBeUndefined();
+    expect(cap('create table status', 'mysql')).toBeUndefined();
+    expect(cap('create table t (status', 'mysql')).toBeUndefined();
+    expect(cap('create table t (id int, type', 'postgres')).toBeUndefined();
+    expect(cap('create table t (price decimal(10, 2), name', 'duckdb')).toBeUndefined();
+    expect(cap('create table t (id int, primary', 'mysql')).toBe('PRIMARY');
+    expect(cap('insert into t (name', 'duckdb', ',')).toBeUndefined();
+    expect(cap('insert into t values (null', 'mysql', ',')).toBe('NULL');
+    expect(cap('select e.order', 'mysql')).toBeUndefined();
+    expect(cap('select @limit', 'mssql')).toBeUndefined();
+    expect(cap('select * from t where :limit', 'postgres')).toBeUndefined();
+    expect(cap('select * from #temp', 'mssql')).toBeUndefined();
+    expect(cap('select key', 'postgres', ',', ['key', 'value'])).toBeUndefined();
+    expect(cap('select my_select', 'mysql')).toBeUndefined();
+  });
+  it('leaves strings, comments, quoted names and variables alone', () => {
+    expect(cap("select 'a select", 'mysql')).toBeUndefined();
+    expect(cap("select 'it''s' from", 'sqlite')).toBe('FROM');
+    expect(cap("select 'a\\' select", 'mysql')).toBeUndefined();
+    expect(cap("select 'a\\' select", 'postgres')).toBe('SELECT');
+    expect(cap('-- select', 'postgres')).toBeUndefined();
+    expect(cap('# select', 'mysql')).toBeUndefined();
+    expect(cap('/* select', 'mssql')).toBeUndefined();
+    expect(cap('/* a */ select', 'mssql')).toBe('SELECT');
+    expect(cap('/* a /* b */ select', 'postgres')).toBeUndefined();
+    expect(cap('select "order', 'postgres')).toBeUndefined();
+    expect(cap('select `order', 'mysql')).toBeUndefined();
+    expect(cap('select [order', 'mssql')).toBeUndefined();
+    expect(cap('select $$ begin select', 'postgres')).toBeUndefined();
+    expect(cap('select $f$ x $f$ from', 'duckdb')).toBe('FROM');
+    expect(cap('select {{ from', 'mysql')).toBeUndefined();
+    expect(cap('SELECT', 'mysql')).toBeUndefined();
+  });
+  it('acts only on characters that end a word', () => {
+    for (const t of [' ', '\t', ',', ';', ')', '(', '()', '\n', '\r\n', '\n    ']) expect(ENDS_WORD.test(t)).toBe(true);
+    for (const t of ['a', '.', 'select ', '  ', "'", '=']) expect(ENDS_WORD.test(t)).toBe(false);
   });
 });

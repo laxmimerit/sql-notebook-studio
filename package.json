@@ -263,6 +263,12 @@
         "icon": "$(symbol-variable)"
       },
       {
+        "command": "sqlNotebook.toggleUppercaseKeywords",
+        "title": "Toggle Uppercase Keywords",
+        "category": "SQL Notebook Studio",
+        "icon": "$(case-sensitive)"
+      },
+      {
         "command": "sqlNotebook.exportHtml",
         "title": "Export as HTML",
         "category": "SQL Notebook Studio"
@@ -405,6 +411,11 @@
           "submenu": "sqlNotebook.export",
           "when": "notebookType == sqlnb",
           "group": "navigation@51"
+        },
+        {
+          "command": "sqlNotebook.toggleUppercaseKeywords",
+          "when": "notebookType == sqlnb",
+          "group": "z_settings@1"
         }
       ],
       "sqlNotebook.export": [
@@ -568,6 +579,12 @@
             "Never ask."
           ],
           "description": "Ask before running DROP, TRUNCATE, or DELETE/UPDATE without WHERE."
+        },
+        "sqlNotebook.editor.uppercaseKeywords": {
+          "type": "boolean",
+          "default": true,
+          "order": 6,
+          "markdownDescription": "Turn SQL keywords into capitals as you type, using the keyword list of the cell's database (MySQL, PostgreSQL, SQL Server, SQLite or DuckDB). Your table, column and alias names, text in quotes and comments are never changed. One `Ctrl+Z` puts a word back."
         },
         "sqlNotebook.autocomplete.keywordCase": {
           "type": "string",

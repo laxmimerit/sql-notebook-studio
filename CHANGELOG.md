@@ -10,6 +10,8 @@ First release.
 - MySQL / MariaDB, PostgreSQL, SQL Server, plus built-in SQLite and DuckDB.
 - SSL/TLS and SSH tunnels. Passwords are kept in VS Code's secret storage.
 - Connection explorer with tables and columns, Select Top 100 and Describe.
+- SQL keywords turn into capitals as you type, per database (keyword lists from sql-formatter). Names, strings and comments are left alone. Setting `sqlNotebook.editor.uppercaseKeywords`, on by default.
+- The notebook toolbar shows the database type next to the connection, for example "Sample Shop · SQLite".
 - Autocomplete for tables, columns, aliases and keywords. Fuzzy and case-blind (`slt` finds SELECT); keywords are inserted in uppercase (or lowercase, or as typed, in settings).
 - Results grid: virtual scrolling, sort, filter, resize, pin, copy, CSV/JSON export.
 - Quick charts: bar, line, area, scatter and pie.

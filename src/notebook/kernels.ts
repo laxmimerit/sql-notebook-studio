@@ -77,7 +77,9 @@ export class Kernels implements vscode.Disposable {
         ctrl.onDidChangeSelectedNotebooks(({ notebook, selected }) => this.onSelected(notebook, id, selected));
         this.controllers.set(conn.id, ctrl);
       }
-      ctrl.label = conn.name;
+      // The notebook toolbar shows the label, so it names the database type too: "Sample Shop · SQLite".
+      const kind = DRIVERS[conn.driver].label.split(' / ')[0];
+      ctrl.label = conn.name.toLowerCase().includes(kind.toLowerCase()) ? conn.name : `${conn.name} · ${kind}`;
       ctrl.description = DRIVERS[conn.driver].label;
       ctrl.detail = [describe(conn), conn.env && conn.env !== 'none' ? conn.env : '', conn.readOnly ? 'read-only' : ''].filter(Boolean).join(' · ');
     }

@@ -7,6 +7,7 @@ import { SessionManager } from './db/manager';
 import { SchemaCache } from './schema/cache';
 import { ConnectionsTree, describeSql, selectTopSql, quoteIdent, type Node } from './schema/tree';
 import { SqlCompletion } from './schema/completion';
+import { AutoUppercase, toggleUppercase } from './notebook/autoUppercase';
 import { Kernels, findOutput } from './notebook/kernels';
 import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE, SQL_LANGUAGE } from './notebook/serializer';
 import { AiService } from './ai/service';
@@ -46,6 +47,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.languages.registerDocumentFormattingEditProvider({ language: SQL_LANGUAGE, scheme: 'vscode-notebook-cell' }, { provideDocumentFormattingEdits: (doc) => formatCell(doc, kernels) }),
     vscode.notebooks.registerNotebookCellStatusBarItemProvider(NOTEBOOK_TYPE, new CellStatus()),
     manager.onDidChange((id) => schema.invalidate(id)),
+    new AutoUppercase(kernels, schema),
   );
 
   // ---------- Notebooks ----------
@@ -199,6 +201,8 @@ export function activate(ctx: vscode.ExtensionContext) {
     editor.selection = new vscode.NotebookRange(index, index + 1);
     await vscode.commands.executeCommand('notebook.cell.edit');
   });
+
+  cmd('sqlNotebook.toggleUppercaseKeywords', () => toggleUppercase());
 
   cmd('sqlNotebook.variables', async () => {
     const editor = vscode.window.activeNotebookEditor;

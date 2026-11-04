@@ -80,6 +80,7 @@ To make your own notebook, run **SQL Notebook Studio: New SQL Notebook**, or rig
 | **Charts** | Bar, line, area, scatter and pie. Pick X and Y, stack series, save the chart with the cell. |
 | **Explorer** | Connections, schemas, tables, views and columns with types and keys. Select Top 100 and Describe in one click. |
 | **Autocomplete** | Tables, views, columns, schemas and keywords from the live schema. Fuzzy and case-blind: `slt` finds `SELECT`, `EMP` finds `employees`. `alias.` lists that table's columns. |
+| **Capital keywords** | SQL keywords turn into capitals as you type, using the keyword list of the cell's database. Your table, column and alias names, strings and comments stay as you wrote them. One **Ctrl+Z** undoes it. |
 | **Variables** | `{{name}}` asks for a value once per session. `${env:NAME}` reads an environment variable. |
 | **Export** | Copy as TSV, CSV, Markdown or JSON. Export results to CSV or JSON, and notebooks to HTML (with charts), PDF or Markdown. |
 | **Safety** | Confirms `DROP`, `TRUNCATE`, and `UPDATE` or `DELETE` without `WHERE`. Production tags and read-only connections. |
@@ -189,6 +190,7 @@ ORDER BY price DESC;
 | `sqlNotebook.queryTimeoutSeconds` | `0` | Query timeout. `0` means none |
 | `sqlNotebook.saveResults` | `false` | Save results in the notebook file |
 | `sqlNotebook.confirmDestructive` | `production` | When to confirm risky statements |
+| `sqlNotebook.editor.uppercaseKeywords` | `true` | Turn SQL keywords into capitals as you type |
 | `sqlNotebook.autocomplete.keywordCase` | `upper` | Case of inserted keywords: `upper`, `lower`, or `auto` to follow what you type |
 | `sqlNotebook.export.maxRows` | `500` | Rows per result in exported files |
 | `sqlNotebook.ai.provider` | `openai` | AI provider |
@@ -207,6 +209,9 @@ In VS Code's secret storage (your OS keychain). Never in settings or in the note
 
 **Can I use AI without sending data to the cloud?**
 Yes. Choose **Ollama** and run a local model. Nothing leaves your machine.
+
+**How does it know which words are SQL keywords?**
+Each notebook has a connection, so it knows the database: the toolbar shows it, for example *Sample Shop · SQLite*. The keyword list for MySQL, PostgreSQL, SQL Server, SQLite or DuckDB comes from the [sql-formatter](https://github.com/sql-formatter-org/sql-formatter) library, so it stays current with that project. Names in your database are never changed, so a column called `name` or `status` stays as it is. To turn it off, run **SQL Notebook Studio: Toggle Uppercase Keywords** or untick the setting.
 
 **Can I open my existing `.sql` files?**
 Yes. Right-click a `.sql` file and choose **Open as SQL Notebook**. Each statement becomes a cell.

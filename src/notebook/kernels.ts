@@ -9,7 +9,7 @@ import { isConnectionLost, ownerFor, type SessionManager } from '../db/manager';
 import { splitStatements } from '../db/splitter';
 import { classify } from '../db/safety';
 import { findVariables, substitute } from '../util/variables';
-import { AI_LANGUAGE, NOTEBOOK_TYPE } from './serializer';
+import { AI_LANGUAGE, NOTEBOOK_TYPE, SQL_LANGUAGE } from './serializer';
 import { RESULT_MIME, type ResultPayload } from '../../shared/protocol';
 import type { AiService } from '../ai/service';
 import type { SchemaCache } from '../schema/cache';
@@ -69,7 +69,7 @@ export class Kernels implements vscode.Disposable {
       let ctrl = this.controllers.get(conn.id);
       if (!ctrl) {
         ctrl = vscode.notebooks.createNotebookController(`sqlnb-${conn.id}`, NOTEBOOK_TYPE, conn.name);
-        ctrl.supportedLanguages = ['sql', AI_LANGUAGE];
+        ctrl.supportedLanguages = [SQL_LANGUAGE, AI_LANGUAGE];
         ctrl.supportsExecutionOrder = true;
         const id = conn.id;
         ctrl.executeHandler = (cells, nb) => this.execute(cells, nb, id);
@@ -159,7 +159,7 @@ export class Kernels implements vscode.Disposable {
 
   private async execute(cells: vscode.NotebookCell[], nb: vscode.NotebookDocument, controllerConnId: string) {
     if (!vscode.workspace.isTrusted) {
-      void vscode.window.showWarningMessage('SQL Notebook runs queries only in trusted workspaces.');
+      void vscode.window.showWarningMessage('SQL Notebook Studio runs queries only in trusted workspaces.');
       return;
     }
     const ctrl = this.controllers.get(controllerConnId)!;
@@ -375,5 +375,5 @@ export function findOutput(id: string) {
 }
 
 export function errorOutput(message: string): vscode.NotebookCellOutput {
-  return new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.error({ name: 'SQL Notebook', message })]);
+  return new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.error({ name: 'SQL Notebook Studio', message })]);
 }

@@ -160,7 +160,7 @@ export async function open(conn: ResolvedConnection): Promise<Session> {
       instanceName: m.instanceName || undefined,
       enableArithAbort: true,
       useUTC: false,
-      appName: 'SQL Notebook',
+      appName: 'SQL Notebook Studio',
     } as any,
   };
   if (m.auth === 'ntlm') {

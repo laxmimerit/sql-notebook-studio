@@ -155,7 +155,7 @@ export async function open(conn: ResolvedConnection): Promise<Session> {
     database: conn.database || undefined,
     ssl: (sslOptions(conn) as any) ?? false,
     connectionTimeoutMillis: 15000,
-    application_name: 'SQL Notebook',
+    application_name: 'SQL Notebook Studio',
   };
   const c = new pg.Client(config);
   c.on('error', () => {

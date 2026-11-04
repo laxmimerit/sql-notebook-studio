@@ -1,6 +1,6 @@
 -- sqlnb v1 {"connection":"Sample Shop","variables":{"country":"India"}}
 -- %% md
--- # Welcome to SQL Notebook
+-- # Welcome to SQL Notebook Studio
 --
 -- This notebook runs on **Sample Shop**, a built-in SQLite database of a small electronics store.
 -- Press **Ctrl+Enter** in a cell to run it, or **Run All** at the top.

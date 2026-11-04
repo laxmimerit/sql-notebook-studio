@@ -30,11 +30,11 @@ export const DEFAULT_BASE_URL: Partial<Record<Provider, string>> = {
   ollama: 'http://localhost:11434',
 };
 
-const SITE = { siteUrl: 'https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook', siteName: 'SQL Notebook' };
+const SITE = { siteUrl: 'https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook', siteName: 'SQL Notebook Studio' };
 
 export function createModel(cfg: AiConfig): BaseChatModel {
   const model = cfg.model || DEFAULT_MODELS[cfg.provider];
-  if (!model) throw new Error('Choose a model first: run "SQL Notebook: Configure AI".');
+  if (!model) throw new Error('Choose a model first: run "SQL Notebook Studio: Configure AI".');
   switch (cfg.provider) {
     case 'openai':
       return new ChatOpenAI({ model, apiKey: cfg.apiKey, useResponsesApi: true, maxRetries: 1 });

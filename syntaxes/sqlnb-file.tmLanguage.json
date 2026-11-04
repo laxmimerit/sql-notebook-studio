@@ -1,0 +1,1 @@
+{ "name": "SQL Notebook", "scopeName": "source.sqlnb-file", "patterns": [{ "include": "source.sqlnb" }] }

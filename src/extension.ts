@@ -8,7 +8,7 @@ import { SchemaCache } from './schema/cache';
 import { ConnectionsTree, describeSql, selectTopSql, quoteIdent, type Node } from './schema/tree';
 import { SqlCompletion } from './schema/completion';
 import { Kernels, findOutput } from './notebook/kernels';
-import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE } from './notebook/serializer';
+import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE, SQL_LANGUAGE } from './notebook/serializer';
 import { AiService } from './ai/service';
 import { openConnectionForm, duplicateConnection, type FormDeps } from './connections/formPanel';
 import { exportNotebook } from './export/exporter';
@@ -42,8 +42,8 @@ export function activate(ctx: vscode.ExtensionContext) {
     kernels,
     vscode.workspace.registerNotebookSerializer(NOTEBOOK_TYPE, new SqlNotebookSerializer(), { transientOutputs: false }),
     vscode.window.createTreeView('sqlNotebook.connections', { treeDataProvider: tree, showCollapseAll: true }),
-    vscode.languages.registerCompletionItemProvider({ language: 'sql', scheme: 'vscode-notebook-cell' }, new SqlCompletion(kernels, schema), '.', ' '),
-    vscode.languages.registerDocumentFormattingEditProvider({ language: 'sql', scheme: 'vscode-notebook-cell' }, { provideDocumentFormattingEdits: (doc) => formatCell(doc, kernels) }),
+    vscode.languages.registerCompletionItemProvider({ language: SQL_LANGUAGE, scheme: 'vscode-notebook-cell' }, new SqlCompletion(kernels, schema), '.', ' '),
+    vscode.languages.registerDocumentFormattingEditProvider({ language: SQL_LANGUAGE, scheme: 'vscode-notebook-cell' }, { provideDocumentFormattingEdits: (doc) => formatCell(doc, kernels) }),
     vscode.notebooks.registerNotebookCellStatusBarItemProvider(NOTEBOOK_TYPE, new CellStatus()),
     manager.onDidChange((id) => schema.invalidate(id)),
   );
@@ -51,7 +51,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   // ---------- Notebooks ----------
 
   async function newNotebook(conn?: ConnectionConfig, sql = '') {
-    const cell = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql, 'sql');
+    const cell = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql, SQL_LANGUAGE);
     const data = new vscode.NotebookData([cell]);
     const active = vscode.window.activeNotebookEditor?.notebook;
     const target = conn ?? (active?.notebookType === NOTEBOOK_TYPE ? kernels.notebookConnection(active) : undefined) ?? store.get(BUILTIN_SAMPLE);
@@ -82,7 +82,7 @@ export function activate(ctx: vscode.ExtensionContext) {
       const index = reuse ? last!.index : nb.cellCount;
       const edit = new vscode.WorkspaceEdit();
       if (reuse) edit.replace(last!.document.uri, new vscode.Range(0, 0, last!.document.lineCount, 0), sql);
-      else edit.set(nb.uri, [vscode.NotebookEdit.insertCells(index, [new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql, 'sql')])]);
+      else edit.set(nb.uri, [vscode.NotebookEdit.insertCells(index, [new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql, SQL_LANGUAGE)])]);
       await vscode.workspace.applyEdit(edit);
       editor.revealRange(new vscode.NotebookRange(index, index + 1), vscode.NotebookEditorRevealType.InCenterIfOutsideViewport);
       await vscode.commands.executeCommand('notebook.cell.execute', { ranges: [{ start: index, end: index + 1 }], document: nb.uri });
@@ -243,7 +243,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     const cells = cellsFromSqlFile(text, (t) => splitStatements(t, conn?.driver ?? 'mysql').map((s) => s.sql)).map((c) =>
       c.kind === 'md'
         ? new vscode.NotebookCellData(vscode.NotebookCellKind.Markup, c.source, 'markdown')
-        : new vscode.NotebookCellData(vscode.NotebookCellKind.Code, c.source, 'sql'),
+        : new vscode.NotebookCellData(vscode.NotebookCellKind.Code, c.source, SQL_LANGUAGE),
     );
     const target = vscode.Uri.file(src.fsPath.replace(/\.sql$/i, '.sqlnb'));
     if (existsSync(target.fsPath)) {

@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import type { ConnectionConfig } from '../db/types';
 import { findOutput, outputId, type Kernels } from '../notebook/kernels';
+import { SQL_LANGUAGE, isSqlLanguage } from '../notebook/serializer';
 import type { SchemaCache } from '../schema/cache';
 import { AI_MIME, RESULT_MIME, isSchemaChange, type AiKind, type AiPayload, type ResultPayload } from '../../shared/protocol';
 import * as P from './prompts';
@@ -216,7 +217,7 @@ export class AiService {
 
   async explainCell(arg?: vscode.NotebookCell) {
     const t = this.target(arg);
-    if (!t || t.cell.document.languageId !== 'sql' || !t.cell.document.getText().trim()) return;
+    if (!t || !isSqlLanguage(t.cell.document.languageId) || !t.cell.document.getText().trim()) return;
     const conn = this.kernels.connectionFor(t.nb, t.cell)!;
     const sql = t.cell.document.getText();
     await this.streamInto(t.nb, t.cell, 'explain', async () => ({ system: P.system(conn.driver), user: P.explain(sql, await this.schemaText(conn, sql)) }));
@@ -224,7 +225,7 @@ export class AiService {
 
   async optimizeCell(arg?: vscode.NotebookCell) {
     const t = this.target(arg);
-    if (!t || t.cell.document.languageId !== 'sql' || !t.cell.document.getText().trim()) return;
+    if (!t || !isSqlLanguage(t.cell.document.languageId) || !t.cell.document.getText().trim()) return;
     const conn = this.kernels.connectionFor(t.nb, t.cell)!;
     const sql = t.cell.document.getText().trim().replace(/;\s*$/, '');
     await this.streamInto(t.nb, t.cell, 'optimize', async () => {
@@ -277,7 +278,7 @@ export class AiService {
     if (!f) return;
     if (isSchemaChange(sql)) {
       const edit = new vscode.WorkspaceEdit();
-      const data = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql.trim(), 'sql');
+      const data = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, sql.trim(), SQL_LANGUAGE);
       if (f.cell.metadata?.connection) data.metadata = { connection: f.cell.metadata.connection };
       edit.set(f.nb.uri, [vscode.NotebookEdit.insertCells(f.cell.index + 1, [data])]);
       await vscode.workspace.applyEdit(edit);
@@ -320,9 +321,9 @@ export class AiService {
 
     const next = cell.index + 1 < nb.cellCount ? nb.cellAt(cell.index + 1) : undefined;
     const edit = new vscode.WorkspaceEdit();
-    const data = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, payload.sql, 'sql');
+    const data = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, payload.sql, SQL_LANGUAGE);
     data.metadata = { ...(cell.metadata?.connection ? { connection: cell.metadata.connection } : {}), generated: true };
-    if (next && next.metadata?.generated && next.document.languageId === 'sql') {
+    if (next && next.metadata?.generated && isSqlLanguage(next.document.languageId)) {
       edit.set(nb.uri, [vscode.NotebookEdit.replaceCells(new vscode.NotebookRange(next.index, next.index + 1), [data])]);
     } else {
       edit.set(nb.uri, [vscode.NotebookEdit.insertCells(cell.index + 1, [data])]);

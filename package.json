@@ -1,6 +1,6 @@
 {
   "name": "sql-notebook",
-  "displayName": "SQL Notebook",
+  "displayName": "SQL Notebook Studio",
   "description": "Notebooks for SQL: MySQL, PostgreSQL, SQL Server, built-in SQLite and DuckDB, with a fast results grid, charts and AI that explains and fixes your queries.",
   "version": "1.0.0",
   "publisher": "kgptalkie",
@@ -32,10 +32,6 @@
     "ai",
     "chart"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kgptalkie/sql-notebook"
-  },
   "main": "./dist/extension.js",
   "activationEvents": [
     "onNotebook:sqlnb"
@@ -50,7 +46,7 @@
     "notebooks": [
       {
         "type": "sqlnb",
-        "displayName": "SQL Notebook",
+        "displayName": "SQL Notebook Studio",
         "selector": [
           {
             "filenamePattern": "*.sqlnb"
@@ -61,7 +57,7 @@
     "notebookRenderer": [
       {
         "id": "sqlnb.renderer",
-        "displayName": "SQL Notebook Results",
+        "displayName": "SQL Notebook Studio Results",
         "entrypoint": "./dist/renderer.js",
         "mimeTypes": [
           "application/vnd.sqlnotebook.result+json",
@@ -73,18 +69,40 @@
     ],
     "languages": [
       {
+        "id": "sqlnb-sql",
+        "aliases": [
+          "SQL"
+        ],
+        "extensions": [],
+        "configuration": "./syntaxes/sql.language-configuration.json"
+      },
+      {
         "id": "sqlnb-ai",
         "aliases": [
           "AI Prompt"
         ],
         "extensions": []
+      },
+      {
+        "id": "sqlnb-file",
+        "aliases": [
+          "SQL Notebook"
+        ],
+        "extensions": [
+          ".sqlnb"
+        ],
+        "configuration": "./syntaxes/sql.language-configuration.json",
+        "icon": {
+          "light": "./media/file/sqlnb-light.svg",
+          "dark": "./media/file/sqlnb-dark.svg"
+        }
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "sqlNotebook",
-          "title": "SQL Notebook",
+          "title": "SQL Notebook Studio",
           "icon": "media/activity.svg"
         }
       ]
@@ -108,144 +126,144 @@
       {
         "command": "sqlNotebook.newNotebook",
         "title": "New SQL Notebook",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(new-file)"
       },
       {
         "command": "sqlNotebook.openSample",
         "title": "Open Sample Notebook",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(book)"
       },
       {
         "command": "sqlNotebook.addConnection",
         "title": "Add Connection",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(add)"
       },
       {
         "command": "sqlNotebook.editConnection",
         "title": "Edit Connection",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(edit)"
       },
       {
         "command": "sqlNotebook.duplicateConnection",
         "title": "Duplicate Connection",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.deleteConnection",
         "title": "Delete Connection",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(trash)"
       },
       {
         "command": "sqlNotebook.connect",
         "title": "Connect",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(plug)"
       },
       {
         "command": "sqlNotebook.disconnect",
         "title": "Disconnect",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(debug-disconnect)"
       },
       {
         "command": "sqlNotebook.refresh",
         "title": "Refresh",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(refresh)"
       },
       {
         "command": "sqlNotebook.newNotebookFor",
         "title": "New Notebook",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(notebook)"
       },
       {
         "command": "sqlNotebook.selectTop",
         "title": "Select Top 100",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(play)"
       },
       {
         "command": "sqlNotebook.describeTable",
         "title": "Describe Table",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.copyName",
         "title": "Copy Name",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.selectNotebookConnection",
         "title": "Select Connection",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(database)"
       },
       {
         "command": "sqlNotebook.selectCellConnection",
         "title": "Change Cell Connection",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(database)"
       },
       {
         "command": "sqlNotebook.configureAI",
         "title": "Configure AI",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(sparkle)"
       },
       {
         "command": "sqlNotebook.explainCell",
         "title": "Explain with AI",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(sparkle)"
       },
       {
         "command": "sqlNotebook.optimizeCell",
         "title": "Optimize with AI",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(rocket)"
       },
       {
         "command": "sqlNotebook.insertAiCell",
         "title": "AI Cell",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(sparkle)"
       },
       {
         "command": "sqlNotebook.variables",
         "title": "Variables",
-        "category": "SQL Notebook",
+        "category": "SQL Notebook Studio",
         "icon": "$(symbol-variable)"
       },
       {
         "command": "sqlNotebook.exportHtml",
         "title": "Export as HTML",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.exportPdf",
         "title": "Export as PDF",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.exportMarkdown",
         "title": "Export as Markdown",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.convertSqlFile",
         "title": "Open as SQL Notebook",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       },
       {
         "command": "sqlNotebook.openWalkthrough",
         "title": "Get Started",
-        "category": "SQL Notebook"
+        "category": "SQL Notebook Studio"
       }
     ],
     "submenus": [
@@ -491,7 +509,7 @@
       ]
     },
     "configuration": {
-      "title": "SQL Notebook",
+      "title": "SQL Notebook Studio",
       "properties": {
         "sqlNotebook.results.maxRows": {
           "type": "number",
@@ -547,7 +565,7 @@
             "Ollama (local, no key needed)",
             "Any OpenAI-compatible API"
           ],
-          "description": "AI provider. Run \"SQL Notebook: Configure AI\" to set it up with your key."
+          "description": "AI provider. Run \"SQL Notebook Studio: Configure AI\" to set it up with your key."
         },
         "sqlNotebook.ai.model": {
           "type": "string",
@@ -585,7 +603,7 @@
     "walkthroughs": [
       {
         "id": "sqlNotebook.start",
-        "title": "Get started with SQL Notebook",
+        "title": "Get started with SQL Notebook Studio",
         "description": "Query any database in a notebook, in four short steps.",
         "steps": [
           {
@@ -634,6 +652,18 @@
           }
         ]
       }
+    ],
+    "grammars": [
+      {
+        "language": "sqlnb-sql",
+        "scopeName": "source.sqlnb",
+        "path": "./syntaxes/sql.tmLanguage.json"
+      },
+      {
+        "language": "sqlnb-file",
+        "scopeName": "source.sqlnb-file",
+        "path": "./syntaxes/sqlnb-file.tmLanguage.json"
+      }
     ]
   },
   "scripts": {
@@ -642,8 +672,9 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run",
     "sample": "node scripts/make-sample.mjs",
-    "package": "npm run build -- --production && vsce package --target win32-x64",
-    "vscode:prepublish": "npm run build -- --production"
+    "package": "vsce package --target win32-x64 --allow-missing-repository -o vsix/",
+    "vscode:prepublish": "npm run build -- --production",
+    "package:all": "python scripts/package-all.py"
   },
   "dependencies": {
     "@duckdb/node-api": "^2.0.0-r.1"

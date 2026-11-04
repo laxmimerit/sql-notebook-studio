@@ -126,7 +126,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--muted); }
 <body><main>
 <h1 class="title">${esc(title)}</h1>
 ${parts.join('\n')}
-<footer>Exported from SQL Notebook · ${new Date().toLocaleString()}</footer>
+<footer>Exported from SQL Notebook Studio · ${new Date().toLocaleString()}</footer>
 </main>
 ${charts ? `<script>${chartJs}</script><script>${CHART_BOOT}</script>` : ''}
 </body></html>`;

@@ -16,3 +16,8 @@ package-lock.json
 *.vsix
 node_modules/**
 !node_modules/@duckdb/**
+!node_modules/detect-libc/**
+base.vsix
+vsix/**
+node_modules/**/*.d.ts
+node_modules/**/*.map

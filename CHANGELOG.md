@@ -5,6 +5,7 @@
 First release.
 
 - `.sqlnb` notebooks with SQL, Markdown and AI cells. Results can be saved in the file.
+- `.sqlnb` files have their own icon. One "SQL" cell type works for every database; the connection picks the dialect.
 - MySQL / MariaDB, PostgreSQL, SQL Server, plus built-in SQLite and DuckDB.
 - SSL/TLS and SSH tunnels. Passwords are kept in VS Code's secret storage.
 - Connection explorer with tables and columns, Select Top 100 and Describe.

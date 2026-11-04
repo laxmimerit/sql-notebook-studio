@@ -14,7 +14,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://vsmarketplacebadges.dev/installs-short/kgptalkie.sql-notebook.svg?color=2ea44f" alt="Installs"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details"><img src="https://vsmarketplacebadges.dev/rating-star/kgptalkie.sql-notebook.svg?color=f5a623" alt="Rating"></a>
   <a href="https://github.com/laxmimerit/sql-notebook-studio/stargazers"><img src="https://img.shields.io/github/stars/laxmimerit/sql-notebook-studio?style=flat&logo=github&color=24292f" alt="GitHub stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 license"></a>
   <img src="https://img.shields.io/badge/VS%20Code-1.104%2B-007acc?logo=visualstudiocode&logoColor=white" alt="VS Code 1.104 or later">
 </p>
 
@@ -230,7 +230,15 @@ Bug reports and ideas are welcome in [Issues](https://github.com/laxmimerit/sql-
 
 ## License
 
-[MIT](LICENSE) © KGP Talkie
+[Apache License 2.0](LICENSE) © 2026 KGP Talkie
+
+You can use, change and share this code, also in commercial work. If you publish it, or a work based on it, keep the [NOTICE](NOTICE) file with it and credit **SQL Notebook Studio by KGP Talkie** with a link to this repository.
+
+Third-party software included in the extension is listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+### Trademarks
+
+The license covers the code, not the names. "SQL Notebook Studio", "KGP Talkie" and the SQL Notebook Studio logo are not licensed for use by forks. If you publish a fork, give it your own name and logo.
 
 <p align="center">
   Made by <a href="https://www.youtube.com/kgptalkie">KGP Talkie</a> · If it helps you, please ⭐ the repo and rate it on the <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details">Marketplace</a>.

@@ -16,7 +16,7 @@
   "homepage": "https://github.com/laxmimerit/sql-notebook-studio#readme",
   "version": "1.0.0",
   "publisher": "kgptalkie",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#1e2430",

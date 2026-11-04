@@ -5,6 +5,7 @@
 First release.
 
 - `.sqlnb` notebooks with SQL, Markdown and AI cells. Results can be saved in the file.
+- Licensed under Apache 2.0, with a NOTICE file. Third-party licenses are in THIRD-PARTY-NOTICES.txt.
 - `.sqlnb` files have their own icon. One "SQL" cell type works for every database; the connection picks the dialect.
 - MySQL / MariaDB, PostgreSQL, SQL Server, plus built-in SQLite and DuckDB.
 - SSL/TLS and SSH tunnels. Passwords are kept in VS Code's secret storage.

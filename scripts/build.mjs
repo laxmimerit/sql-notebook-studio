@@ -2,6 +2,7 @@
 // the notebook renderer and the connection form webview.
 import * as esbuild from 'esbuild';
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { writeNotices } from './notices.mjs';
 
 const watch = process.argv.includes('--watch');
 const production = process.argv.includes('--production');
@@ -18,6 +19,7 @@ const common = {
   sourcemap: !production,
   logLevel: 'info',
   legalComments: 'none',
+  metafile: true,
 };
 
 const nodeExternals = ['vscode', '@duckdb/node-api', '@duckdb/node-bindings', 'pg-native', 'cpu-features', '*.node'];
@@ -68,6 +70,8 @@ const contexts = await Promise.all([
 if (watch) {
   await Promise.all(contexts.map((c) => c.watch()));
 } else {
-  await Promise.all(contexts.map((c) => c.rebuild()));
+  const results = await Promise.all(contexts.map((c) => c.rebuild()));
   await Promise.all(contexts.map((c) => c.dispose()));
+  const count = writeNotices(results.map((r) => r.metafile));
+  console.log(`THIRD-PARTY-NOTICES.txt: ${count} entries`);
 }

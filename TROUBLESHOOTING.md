@@ -243,6 +243,49 @@ Keywords** or untick `sqlNotebook.editor.uppercaseKeywords`.
 
 ## AI
 
+### The AI's answers are poor: choose a stronger model
+
+**The answers are only as good as the model you choose.** SQL Notebook Studio
+sends every model the same instructions and the same table and column names.
+If explanations are vague, fixes don't work or the SQL uses columns that don't
+exist, the cause is the model set in the AI settings, not SQL Notebook Studio.
+Run **SQL Notebook Studio: Configure AI** and pick a stronger model.
+
+**Local models (Ollama): use about 27B parameters or more.**
+
+- Small models, around 4B to 8B parameters, are not good enough for this. They
+  misread the schema, make up column names and give shallow explanations.
+- Models of about 27B to 32B parameters work well, for example the 27B to 32B
+  versions of Gemma or Qwen.
+- They need a strong computer: roughly 16 to 20 GB of GPU memory, or a Mac with
+  32 GB of memory or more. On less, they run very slowly or not at all.
+- If your computer can't run a model that size, use an AI API instead (below).
+  Many have a free tier.
+
+**Free AI APIs.** These are enough for learning and everyday use. Their limits
+and model lists change often, so check each site for the current ones.
+
+| Service | Get a free key | In Configure AI |
+| --- | --- | --- |
+| [OpenRouter](https://openrouter.ai) | [openrouter.ai/keys](https://openrouter.ai/keys) | Provider **OpenRouter**. Pick a large model whose name ends in `:free`. |
+| [Google Gemini](https://ai.google.dev) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Provider **Custom (OpenAI-compatible)**, base URL `https://generativelanguage.googleapis.com/v1beta/openai/`, then a Gemini Flash model. |
+| [Groq](https://groq.com) | [console.groq.com/keys](https://console.groq.com/keys) | Provider **Custom (OpenAI-compatible)**, base URL `https://api.groq.com/openai/v1` |
+| [NVIDIA NIM](https://build.nvidia.com) | [build.nvidia.com](https://build.nvidia.com) (profile → API Keys) | Provider **Custom (OpenAI-compatible)**, base URL `https://integrate.api.nvidia.com/v1` |
+
+With **Custom (OpenAI-compatible)**, enter the base URL, paste the key, and the
+model list loads from the service. The same rule applies there: choose one of
+the larger models, not the smallest. For more options, search the web for
+"free LLM API".
+
+> Free tiers may use what you send to improve their models. SQL Notebook
+> Studio sends your table and column names, and result rows only when you
+> allow it. For confidential databases, use a paid API or a local model.
+
+**Paid AI APIs** give the best answers: **OpenAI**, **Anthropic**, or the paid
+models on **OpenRouter**, all built into Configure AI.
+
+### Other AI problems
+
 **AI with Ollama fails or never answers ("fetch failed", "ECONNREFUSED").**
 Start Ollama (`ollama serve`). Run **SQL Notebook Studio: Configure AI** and
 check that the address is `http://localhost:11434` and that the model is pulled

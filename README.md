@@ -166,6 +166,8 @@ AI is optional and off until you set it up: run **SQL Notebook Studio: Configure
 
 Only the schema (table and column names) is sent with your request, unless you allow result data.
 
+**The answers are only as good as the model.** Small local models (around 4B parameters) give poor results; use about 27B or more, or a free or paid AI API. See [Choosing an AI model](TROUBLESHOOTING.md#the-ais-answers-are-poor-choose-a-stronger-model).
+
 ### AI cell: plain words in, SQL out
 
 <p align="center">
@@ -226,6 +228,9 @@ In VS Code's secret storage (your OS keychain). Never in settings or in the note
 
 **Can I use AI without sending data to the cloud?**
 Yes. Choose **Ollama** and run a local model. Nothing leaves your machine.
+
+**The AI's answers are poor. Which model should I use?**
+The answers depend on the model you choose, not on SQL Notebook Studio. Every model gets the same instructions and schema. Small local models (around 4B parameters) are not good enough; use about 27B to 32B. If your computer can't run that, use a free AI API such as OpenRouter, Google Gemini, Groq or NVIDIA NIM, or a paid one (OpenAI, Anthropic). See [Choosing an AI model](TROUBLESHOOTING.md#the-ais-answers-are-poor-choose-a-stronger-model) for setup steps.
 
 **How does it know which words are SQL keywords?**
 Each notebook has a connection, so it knows the database: the toolbar shows it, for example *Sample Shop · SQLite*. The keyword list for MySQL, PostgreSQL, SQL Server, SQLite or DuckDB comes from the [sql-formatter](https://github.com/sql-formatter-org/sql-formatter) library, so it stays current with that project. Names in your database are never changed, so a column called `name` or `status` stays as it is. To turn it off, run **SQL Notebook Studio: Toggle Uppercase Keywords** or untick the setting.

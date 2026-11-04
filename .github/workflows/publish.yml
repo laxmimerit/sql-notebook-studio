@@ -1,8 +1,15 @@
-# Publishes the extension to the VS Code Marketplace.
+# Publishes the extension to the VS Code Marketplace and attaches the 8
+# platform packages to a GitHub Release, for people who install from a file.
 #
 # Run it by pushing a version tag that matches package.json, for example:
 #   git tag v1.0.1 && git push origin v1.0.1
-# or from the Actions tab (Run workflow).
+# or from the Actions tab (Run workflow). A manual run with "Only the GitHub
+# Release" ticked skips the Marketplace and makes or refreshes the release for
+# the version in package.json.
+#
+# Each release also carries copies without the version in the name, so links
+# like .../releases/latest/download/sql-notebook-studio-win32-x64.vsix always
+# give the newest version.
 #
 # No token is stored anywhere: the Marketplace trusts this workflow through
 # Trusted Publishing (OpenID Connect). The policy on the publisher page names
@@ -14,6 +21,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_only:
+        description: Only the GitHub Release (skip the Marketplace)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,7 +40,7 @@ jobs:
     # other 7 platform packages from it by swapping in their DuckDB engine.
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write # creates the GitHub Release
       id-token: write # lets vsce get a short-lived Marketplace credential
     steps:
       - uses: actions/checkout@v7
@@ -76,5 +88,52 @@ jobs:
           retention-days: 30
 
       - name: Publish
+        if: ${{ !inputs.release_only }}
         shell: bash
         run: npx vsce publish --oidc --packagePath vsix/*.vsix
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release_only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          tag="v$v"
+          repo="$GITHUB_REPOSITORY"
+
+          # Copies without the version, for the never-changing "latest" links.
+          mkdir -p latest
+          for f in vsix/*-"$v".vsix; do
+            cp "$f" "latest/$(basename "$f" "-$v.vsix").vsix"
+          done
+
+          # Release notes: how to install, then this version's CHANGELOG section.
+          {
+            echo "## Install"
+            echo
+            echo "Easiest: search **SQL Notebook Studio** in VS Code's Extensions view."
+            echo
+            echo "From a file: download the package for your system, then in VS Code open **Extensions → ··· → Install from VSIX…**"
+            echo
+            echo "| System | Package |"
+            echo "| --- | --- |"
+            for p in "Windows (most PCs):win32-x64" "Windows on ARM:win32-arm64" \
+                     "Mac with Apple Silicon (M1 and later):darwin-arm64" "Mac with Intel:darwin-x64" \
+                     "Linux:linux-x64" "Linux on ARM:linux-arm64" \
+                     "Alpine Linux:alpine-x64" "Alpine Linux on ARM:alpine-arm64"; do
+              name="sql-notebook-studio-${p##*:}.vsix"
+              echo "| ${p%:*} | [$name](https://github.com/$repo/releases/latest/download/$name) |"
+            done
+            echo
+            echo "## What's in $v"
+            awk -v h="## $v" '$0==h{on=1; next} on && /^## /{exit} on' CHANGELOG.md
+          } > notes.md
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" vsix/*.vsix latest/*.vsix --clobber
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" vsix/*.vsix latest/*.vsix \
+              --verify-tag --title "SQL Notebook Studio $v" --notes-file notes.md
+          fi

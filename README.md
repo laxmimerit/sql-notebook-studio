@@ -61,7 +61,22 @@
 code --install-extension kgptalkie.sql-notebook-studio
 ```
 
-**From a file:** download the `.vsix` for your system, then in VS Code open **Extensions → ··· → Install from VSIX…**
+**From a file:** download the package for your system, then in VS Code open **Extensions → ··· → Install from VSIX…** These links always give the newest version:
+
+| System | Download |
+| --- | --- |
+| Windows (most PCs) | [sql-notebook-studio-win32-x64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-win32-x64.vsix) |
+| Windows on ARM | [sql-notebook-studio-win32-arm64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-win32-arm64.vsix) |
+| Mac with Apple Silicon (M1 and later) | [sql-notebook-studio-darwin-arm64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-darwin-arm64.vsix) |
+| Mac with Intel | [sql-notebook-studio-darwin-x64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-darwin-x64.vsix) |
+| Linux | [sql-notebook-studio-linux-x64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-linux-x64.vsix) |
+| Linux on ARM | [sql-notebook-studio-linux-arm64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-linux-arm64.vsix) |
+| Alpine Linux | [sql-notebook-studio-alpine-x64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-alpine-x64.vsix) |
+| Alpine Linux on ARM | [sql-notebook-studio-alpine-arm64.vsix](https://github.com/laxmimerit/sql-notebook-studio/releases/latest/download/sql-notebook-studio-alpine-arm64.vsix) |
+
+Or from a terminal, after downloading: `code --install-extension sql-notebook-studio-win32-x64.vsix`. A file install doesn't update itself; install from the Marketplace once to get updates.
+
+All versions are on the [Releases page](https://github.com/laxmimerit/sql-notebook-studio/releases).
 
 ## Quick start
 

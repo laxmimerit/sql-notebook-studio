@@ -269,7 +269,7 @@ and model lists change often, so check each site for the current ones.
 | --- | --- | --- |
 | [OpenRouter](https://openrouter.ai) | [openrouter.ai/keys](https://openrouter.ai/keys) | Provider **OpenRouter**. Pick a large model whose name ends in `:free`. |
 | [Google Gemini](https://ai.google.dev) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Provider **Custom (OpenAI-compatible)**, base URL `https://generativelanguage.googleapis.com/v1beta/openai/`, then a Gemini Flash model. |
-| [Groq](https://groq.com) | [console.groq.com/keys](https://console.groq.com/keys) | Provider **Custom (OpenAI-compatible)**, base URL `https://api.groq.com/openai/v1` |
+| [xAI Grok](https://x.ai/api) | [console.x.ai](https://console.x.ai) | Provider **Custom (OpenAI-compatible)**, base URL `https://api.x.ai/v1`, then a Grok model. Pay as you go; new accounts may get free starting credits. |
 | [NVIDIA NIM](https://build.nvidia.com) | [build.nvidia.com](https://build.nvidia.com) (profile → API Keys) | Provider **Custom (OpenAI-compatible)**, base URL `https://integrate.api.nvidia.com/v1` |
 
 With **Custom (OpenAI-compatible)**, enter the base URL, paste the key, and the

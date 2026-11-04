@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://img.shields.io/visual-studio-marketplace/v/kgptalkie.sql-notebook?label=VS%20Marketplace&logo=visualstudiocode&logoColor=white&color=0078d7" alt="VS Marketplace version"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://img.shields.io/visual-studio-marketplace/i/kgptalkie.sql-notebook?color=2ea44f" alt="Installs"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details"><img src="https://img.shields.io/visual-studio-marketplace/r/kgptalkie.sql-notebook?color=f5a623" alt="Rating"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://vsmarketplacebadges.dev/version-short/kgptalkie.sql-notebook.svg?label=VS%20Marketplace&color=0078d7&logo=visualstudiocode" alt="VS Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook"><img src="https://vsmarketplacebadges.dev/installs-short/kgptalkie.sql-notebook.svg?color=2ea44f" alt="Installs"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kgptalkie.sql-notebook&ssr=false#review-details"><img src="https://vsmarketplacebadges.dev/rating-star/kgptalkie.sql-notebook.svg?color=f5a623" alt="Rating"></a>
   <a href="https://github.com/laxmimerit/sql-notebook-studio/stargazers"><img src="https://img.shields.io/github/stars/laxmimerit/sql-notebook-studio?style=flat&logo=github&color=24292f" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/VS%20Code-1.104%2B-007acc?logo=visualstudiocode&logoColor=white" alt="VS Code 1.104 or later">

@@ -233,6 +233,15 @@ npm run package:all  # one .vsix per platform in vsix/
 
 Press **F5** in VS Code to start an Extension Development Host.
 
+**Releasing.** Raise `version` in `package.json`, add the changes to `CHANGELOG.md`, commit, then push a matching tag:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+The [Publish workflow](.github/workflows/publish.yml) tests, builds the 8 platform packages and publishes them to the Marketplace. It uses Trusted Publishing, so no token is stored anywhere.
+
 ## Contributing
 
 Bug reports and ideas are welcome in [Issues](https://github.com/laxmimerit/sql-notebook-studio/issues). For a pull request, please open an issue first so we can agree on the change.

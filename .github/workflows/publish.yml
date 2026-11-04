@@ -1,0 +1,76 @@
+# Publishes the extension to the VS Code Marketplace.
+#
+# Run it by pushing a version tag that matches package.json, for example:
+#   git tag v1.0.1 && git push origin v1.0.1
+# or from the Actions tab (Run workflow).
+#
+# No token is stored anywhere: the Marketplace trusts this workflow through
+# Trusted Publishing (OpenID Connect). The policy on the publisher page names
+# this repository and this file, publish.yml. Renaming the file breaks it.
+
+name: Publish to Marketplace
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Windows: package-all.py builds win32-x64 with vsce, then makes the
+    # other 7 platform packages from it by swapping in their DuckDB engine.
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write # lets vsce get a short-lived Marketplace credential
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: npm ci
+
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build the 8 platform packages
+        run: npm run package:all
+
+      - name: Keep the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: vsix/*.vsix
+          retention-days: 30
+
+      - name: Publish
+        shell: bash
+        run: npx vsce publish --oidc --packagePath vsix/*.vsix

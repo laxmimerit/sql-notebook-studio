@@ -24,11 +24,12 @@ export const EXTRA: Partial<Record<DriverId, string[]>> = {
 export type KeywordCase = 'auto' | 'upper' | 'lower';
 
 /**
- * The case to insert keywords in. "auto" follows what the user is typing:
+ * The case to insert keywords in. Uppercase unless the setting says otherwise.
+ * "auto" follows what the user is typing:
  * all lowercase letters give lowercase, anything else (or nothing typed yet)
  * gives uppercase.
  */
-export function keywordCase(typed: string, setting: KeywordCase = 'auto'): 'upper' | 'lower' {
+export function keywordCase(typed: string, setting: KeywordCase = 'upper'): 'upper' | 'lower' {
   if (setting !== 'auto') return setting;
   return /[a-z]/.test(typed) && !/[A-Z]/.test(typed) ? 'lower' : 'upper';
 }

@@ -189,7 +189,7 @@ ORDER BY price DESC;
 | `sqlNotebook.queryTimeoutSeconds` | `0` | Query timeout. `0` means none |
 | `sqlNotebook.saveResults` | `false` | Save results in the notebook file |
 | `sqlNotebook.confirmDestructive` | `production` | When to confirm risky statements |
-| `sqlNotebook.autocomplete.keywordCase` | `auto` | Keyword case: `auto` follows what you type, or always `upper` or `lower` |
+| `sqlNotebook.autocomplete.keywordCase` | `upper` | Case of inserted keywords: `upper`, `lower`, or `auto` to follow what you type |
 | `sqlNotebook.export.maxRows` | `500` | Rows per result in exported files |
 | `sqlNotebook.ai.provider` | `openai` | AI provider |
 | `sqlNotebook.ai.model` | | Model name, for example `qwen3.8:27b` for Ollama |

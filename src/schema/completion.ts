@@ -1,8 +1,8 @@
 // Autocomplete in SQL cells: keywords, tables and views from the live schema,
 // columns of the tables in the query, and alias.column after a dot.
 // VS Code's suggest widget filters the items: fuzzy and case-blind, so "slt"
-// finds SELECT and "EMP" finds employees. Keywords are inserted in the case
-// the user types (setting sqlNotebook.autocomplete.keywordCase).
+// finds SELECT and "EMP" finds employees. Keywords are inserted in uppercase,
+// or as set in sqlNotebook.autocomplete.keywordCase (lower, or auto: as typed).
 
 import * as vscode from 'vscode';
 import type { ConnectionConfig } from '../db/types';
@@ -67,7 +67,7 @@ export class SqlCompletion implements vscode.CompletionItemProvider {
       });
     }
     const typed = /[\w$]*$/.exec(before)?.[0] ?? '';
-    const setting = vscode.workspace.getConfiguration('sqlNotebook').get<KeywordCase>('autocomplete.keywordCase', 'auto');
+    const setting = vscode.workspace.getConfiguration('sqlNotebook').get<KeywordCase>('autocomplete.keywordCase', 'upper');
     const keyCase = keywordCase(typed, setting);
     for (const k of [...KEYWORDS, ...(EXTRA[conn.driver] ?? [])]) {
       const it = new vscode.CompletionItem(applyCase(k, keyCase), vscode.CompletionItemKind.Keyword);

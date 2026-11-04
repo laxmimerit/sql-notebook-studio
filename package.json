@@ -572,18 +572,18 @@
         "sqlNotebook.autocomplete.keywordCase": {
           "type": "string",
           "enum": [
-            "auto",
             "upper",
-            "lower"
+            "lower",
+            "auto"
           ],
           "enumDescriptions": [
-            "Follow what you type: \"sel\" gives select, \"SEL\" gives SELECT.",
-            "Always SELECT, FROM, WHERE.",
-            "Always select, from, where."
+            "Always SELECT, FROM, WHERE, whatever you type.",
+            "Always select, from, where.",
+            "Follow what you type: \"sel\" gives select, \"SEL\" gives SELECT."
           ],
-          "default": "auto",
+          "default": "upper",
           "order": 5,
-          "description": "Letter case of SQL keywords that autocomplete inserts. Matching ignores case and is fuzzy either way: \"slt\" finds SELECT, \"EMP\" finds employees."
+          "description": "Letter case of SQL keywords that autocomplete inserts. Uppercase by default. Matching ignores case and is fuzzy either way: \"slt\" finds SELECT, \"EMP\" finds employees."
         },
         "sqlNotebook.ai.provider": {
           "type": "string",

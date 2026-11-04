@@ -184,13 +184,18 @@ describe('AI suggestions', () => {
 });
 
 describe('autocomplete keyword case', () => {
-  it('follows what is typed in auto mode', () => {
-    expect(keywordCase('sel')).toBe('lower');
-    expect(keywordCase('slt')).toBe('lower');
+  it('is uppercase by default, whatever is typed', () => {
+    expect(keywordCase('sel')).toBe('upper');
+    expect(keywordCase('slt')).toBe('upper');
     expect(keywordCase('SEL')).toBe('upper');
-    expect(keywordCase('Sel')).toBe('upper');
-    expect(keywordCase('')).toBe('upper');
-    expect(keywordCase('_')).toBe('upper');
+  });
+  it('follows what is typed in auto mode', () => {
+    expect(keywordCase('sel', 'auto')).toBe('lower');
+    expect(keywordCase('slt', 'auto')).toBe('lower');
+    expect(keywordCase('SEL', 'auto')).toBe('upper');
+    expect(keywordCase('Sel', 'auto')).toBe('upper');
+    expect(keywordCase('', 'auto')).toBe('upper');
+    expect(keywordCase('_', 'auto')).toBe('upper');
   });
   it('honours a fixed setting', () => {
     expect(keywordCase('sel', 'upper')).toBe('upper');

@@ -2,6 +2,18 @@
   "name": "sql-notebook",
   "displayName": "SQL Notebook Studio",
   "description": "Notebooks for SQL: MySQL, PostgreSQL, SQL Server, built-in SQLite and DuckDB, with a fast results grid, charts and AI that explains and fixes your queries.",
+  "author": {
+    "name": "KGP Talkie",
+    "url": "https://www.youtube.com/kgptalkie"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/laxmimerit/sql-notebook-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/laxmimerit/sql-notebook-studio/issues"
+  },
+  "homepage": "https://github.com/laxmimerit/sql-notebook-studio#readme",
   "version": "1.0.0",
   "publisher": "kgptalkie",
   "license": "MIT",
@@ -21,16 +33,26 @@
     "Other"
   ],
   "keywords": [
-    "sql",
-    "notebook",
-    "mysql",
-    "postgres",
-    "sqlite",
-    "duckdb",
-    "mssql",
-    "database",
     "ai",
-    "chart"
+    "anthropic",
+    "chart",
+    "data",
+    "database",
+    "duckdb",
+    "jupyter",
+    "langchain",
+    "mariadb",
+    "mssql",
+    "mysql",
+    "notebook",
+    "ollama",
+    "openai",
+    "postgres",
+    "postgresql",
+    "query",
+    "sql",
+    "sql server",
+    "sqlite"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -672,7 +694,7 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run",
     "sample": "node scripts/make-sample.mjs",
-    "package": "vsce package --target win32-x64 --allow-missing-repository --baseImagesUrl https://raw.githubusercontent.com/laxmimerit/sql-notebook-studio/main/ --baseContentUrl https://raw.githubusercontent.com/laxmimerit/sql-notebook-studio/main/ -o vsix/",
+    "package": "vsce package --target win32-x64 -o vsix/",
     "vscode:prepublish": "npm run build -- --production",
     "package:all": "python scripts/package-all.py"
   },

@@ -1,0 +1,31 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: db
+    attributes:
+      label: Database
+      options: [MySQL / MariaDB, PostgreSQL, SQL Server, SQLite, DuckDB, Not database related]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Extension version, VS Code version and OS (Help → About).
+      placeholder: SQL Notebook Studio 1.0.0 · VS Code 1.105 · Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or screenshot
+      description: Please remove passwords, hosts and other private data.

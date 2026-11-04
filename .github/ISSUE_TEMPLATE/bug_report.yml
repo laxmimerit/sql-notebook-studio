@@ -2,6 +2,10 @@ name: Bug report
 description: Something does not work as expected
 labels: [bug]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Connection problem? Check [TROUBLESHOOTING.md](https://github.com/laxmimerit/sql-notebook-studio/blob/main/TROUBLESHOOTING.md) first. It lists common errors and their fixes for each database.
   - type: textarea
     id: what
     attributes:

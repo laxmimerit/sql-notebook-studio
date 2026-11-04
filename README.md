@@ -219,6 +219,9 @@ Yes. Right-click a `.sql` file and choose **Open as SQL Notebook**. Each stateme
 **Which platforms are supported?**
 Windows, macOS and Linux (x64 and arm64), including Alpine.
 
+**Can't connect, or a connection stops working?**
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md): error messages and fixes for each database, for example SQL Server letting only one notebook connect at a time.
+
 ## Development
 
 ```bash

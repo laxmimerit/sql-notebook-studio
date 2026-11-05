@@ -62,7 +62,7 @@ Studio. The two copies keep separate connection lists, so you can see:
 - a notebook running on a connection that the sidebar doesn't list;
 - "You already have a connection named …" for a name the sidebar doesn't show.
 
-Versions after 1.0.0 warn about this and offer **Uninstall Old Copy**.
+Version 1.0.1 and later warn about this and offer **Uninstall Old Copy**.
 Or remove it yourself: in the Extensions view, uninstall the SQL Notebook
 Studio entry whose ID (shown on its page) is `kgptalkie.sql-notebook`, keep
 `kgptalkie.sql-notebook-studio`, and reload the window. Connections saved only
@@ -71,7 +71,7 @@ in the old copy need to be added again.
 ### "You already have a connection named …"
 
 Connection names must be unique. A new connection is named after its server,
-for example *SQL Server · localhost*; in versions after 1.0.0, if that name
+for example *SQL Server · localhost*; from version 1.0.1, if that name
 is taken, the form picks *SQL Server · localhost (2)*. To use the server you already saved,
 pick that connection in the sidebar or the notebook's connection picker
 instead of adding it again. Seeing this for a name the sidebar doesn't list

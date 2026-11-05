@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
 
 - If an old test copy (`kgptalkie.sql-notebook`) is also installed, the extension now steps aside and offers to uninstall it. Before, every button showed twice and the two copies kept separate connection lists, so a connection could work in a notebook but be missing from the sidebar.
 - A new connection's automatic name no longer clashes with a saved one: "SQL Server · localhost" becomes "SQL Server · localhost (2)". The "already used" message now says where the other connection is.

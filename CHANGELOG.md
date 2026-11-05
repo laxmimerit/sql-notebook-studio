@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.1
 
 - Every cell's toolbar has an **Add AI Prompt Below** button (chat sparkle icon). VS Code keeps the "+ Code / + Markdown" row between cells to itself, so this is how to add a prompt right under a cell.
 - An AI cell that answers without SQL (for example "the database has no tables", or a table is missing) now ends with ✓, not ✗. It ran fine; there was just no SQL to put below.

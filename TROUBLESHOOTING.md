@@ -320,6 +320,16 @@ models on **OpenRouter**, all built into Configure AI.
 
 ### Other AI problems
 
+**The AI uses table or column names that don't exist ("The query assumes…").**
+The AI only knows the tables it is shown, and it is shown the database the
+notebook is in. Up to 1.0.2, a SQL Server connection with no database set
+showed it `master`, so even a 550B model guessed names like `FirstName`. Later
+versions also show any database your request names ("the persons table of
+MyDatabase"), list the user databases when the notebook is still in `master`,
+and tell the model to say a table is missing instead of guessing. On 1.0.2 or
+earlier: run `USE MyDatabase;` in a cell first, or set **Database** in the
+connection.
+
 **AI with Ollama fails or never answers ("fetch failed", "ECONNREFUSED").**
 Start Ollama (`ollama serve`). Run **SQL Notebook Studio: Configure AI** and
 check that the address is `http://localhost:11434` and that the model is pulled

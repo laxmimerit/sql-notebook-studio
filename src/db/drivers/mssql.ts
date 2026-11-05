@@ -118,6 +118,11 @@ class MssqlSession implements Session {
     return r[0].s;
   }
 
+  async listDatabases() {
+    const r = await this.q<{ n: string }>('select name as n from sys.databases where database_id > 4 and state = 0 and has_dbaccess(name) = 1 order by name');
+    return r.map((x) => x.n);
+  }
+
   async location() {
     const r = await this.q<{ d: string; s: string }>('select db_name() as d, schema_name() as s');
     return { database: r[0].d, container: r[0].s };

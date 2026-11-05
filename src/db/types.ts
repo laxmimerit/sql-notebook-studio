@@ -102,6 +102,8 @@ export interface Session {
   listColumns(table: string, container?: string, database?: string): Promise<ColumnInfo[]>;
   /** Where unqualified names resolve now, after any USE this session ran. */
   location(): Promise<{ database?: string; container?: string }>;
+  /** SQL Server only: the user databases this login can open. */
+  listDatabases?(): Promise<string[]>;
   /** A plan for the query, used by Optimize with AI. */
   explain(sql: string): Promise<string | undefined>;
 }

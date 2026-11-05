@@ -102,7 +102,8 @@ export function generate(request: string, schema: string): string {
   return `Write one query for this request:
 "${request.trim()}"
 
-Answer with one short sentence on how the query works (mention any assumption), then the query in one sql code block.
+Answer with one short sentence on how the query works, then the query in one sql code block.
+Use the exact table and column names from the schema below. If the request needs a table or column that is not in it, do not guess: say which one is missing and write no query, unless the request is to create it.
 
 Schema:
 ${schema}`;

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The AI sees the right tables on SQL Server. A database named in the request ("the persons table of MyDatabase") is described too, with three-part names. When the notebook is still in `master`, the user databases are described instead of `master`'s system tables. Before, the AI was shown `master` and guessed column names.
+- The AI no longer guesses missing tables or columns: it says which one is missing.
+
 ## 1.0.2
 
 - Autocomplete and the AI now look in the database the notebook switched to with `USE`, not only the one saved in the connection. Before, a SQL Server connection with no database set suggested `master`'s tables after `USE MyDatabase`, and MySQL suggested none. `USE` counts whether it is in the same cell, in an earlier cell, or already run.

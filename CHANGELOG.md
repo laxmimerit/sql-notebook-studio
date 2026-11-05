@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.3
 
 - The AI sees the right tables on SQL Server. A database named in the request ("the persons table of MyDatabase") is described too, with three-part names. When the notebook is still in `master`, the user databases are described instead of `master`'s system tables. Before, the AI was shown `master` and guessed column names.
 - The AI no longer guesses missing tables or columns: it says which one is missing.

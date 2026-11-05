@@ -323,8 +323,8 @@ models on **OpenRouter**, all built into Configure AI.
 **The AI uses table or column names that don't exist ("The query assumes…").**
 The AI only knows the tables it is shown, and it is shown the database the
 notebook is in. Up to 1.0.2, a SQL Server connection with no database set
-showed it `master`, so even a 550B model guessed names like `FirstName`. Later
-versions also show any database your request names ("the persons table of
+showed it `master`, so even a 550B model guessed names like `FirstName`. From
+1.0.3 it also shows any database your request names ("the persons table of
 MyDatabase"), list the user databases when the notebook is still in `master`,
 and tell the model to say a table is missing instead of guessing. On 1.0.2 or
 earlier: run `USE MyDatabase;` in a cell first, or set **Database** in the

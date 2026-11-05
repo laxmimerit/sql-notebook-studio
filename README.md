@@ -164,7 +164,9 @@ AI is optional and off until you set it up: run **SQL Notebook Studio: Configure
 | **Optimize** | Reads the query plan and suggests a faster query or an index. |
 | **Explain result** | Summarizes what the rows show. Asks before it sends any rows to a cloud provider. |
 
-Only the schema (table and column names) is sent with your request, unless you allow result data.
+**AI cells and Fix with AI work as an agent.** For a task with several parts the model first writes a short plan, then looks up the tables and columns it needs, and checks its SQL against your database before it answers. Nothing is run: SQL Server compiles the SQL under `SET NOEXEC ON`, the other databases use `EXPLAIN`. If the check fails, the model fixes the SQL and checks again. The AI card shows the plan and each step while it works, then folds them into **How this answer was made**. Agent mode needs a model with tool calling; with one that has none, the answer is made the direct way and the card says so. Set `sqlNotebook.ai.mode` to `direct` for one quick call with no checks.
+
+Only the schema (table and column names) is sent with your request, unless you allow result data. With a local model, or with result data allowed, the agent may also read 5 rows of a table to see what the values look like.
 
 **The answers are only as good as the model.** Small local models (around 4B parameters) give poor results; use about 27B or more, or a free or paid AI API. See [Choosing an AI model](TROUBLESHOOTING.md#the-ais-answers-are-poor-choose-a-stronger-model).
 
@@ -215,6 +217,7 @@ ORDER BY price DESC;
 | `sqlNotebook.ai.provider` | `openai` | AI provider |
 | `sqlNotebook.ai.model` | | Model name, for example `qwen3.8:27b` for Ollama |
 | `sqlNotebook.ai.baseUrl` | | Custom or Ollama URL |
+| `sqlNotebook.ai.mode` | `agent` | `agent`: AI cells and Fix plan, look up tables and check the SQL. `direct`: one call, no checks |
 | `sqlNotebook.ai.allowResultData` | `false` | Send rows to AI without asking |
 | `sqlNotebook.ai.runGeneratedSql` | `false` | Run SQL from an AI cell at once |
 

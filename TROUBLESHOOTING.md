@@ -330,6 +330,25 @@ and tell the model to say a table is missing instead of guessing. On 1.0.2 or
 earlier: run `USE MyDatabase;` in a cell first, or set **Database** in the
 connection.
 
+**"… cannot use tools, so it answered without checking the database".**
+Agent mode (the default for AI cells and Fix with AI) needs a model that can
+call tools. This model can't, so the answer was made the direct way, without
+looking up tables or checking the SQL. Pick a model with tool calling: on
+Ollama, `ollama show <model>` lists `tools` under Capabilities; on OpenRouter,
+filter models by "Tools". Or set `sqlNotebook.ai.mode` to `direct` to stop the
+note.
+
+**The AI card says "Step limit reached".**
+The agent may call the model at most 10 times per answer. When it runs out, it
+answers with what its tools found so far. Small models sometimes loop on the
+same lookup; a stronger model, or a more specific request ("the persons table
+in MyDatabase"), usually fixes it.
+
+**Why does the generated SQL hold a CREATE TABLE as well as the query?**
+When the request needs a new table first, the agent puts every statement in one
+cell, in order, because the query fails without the table. Run the cell once;
+the CREATE TABLE fails if the table already exists.
+
 **AI with Ollama fails or never answers ("fetch failed", "ECONNREFUSED").**
 Start Ollama (`ollama serve`). Run **SQL Notebook Studio: Configure AI** and
 check that the address is `http://localhost:11434` and that the model is pulled

@@ -19,6 +19,24 @@ export function system(driver: DriverId): string {
   ].join('\n');
 }
 
+/** System prompt for agent mode: same rules, plus how to use the tools. */
+export function agentSystem(driver: DriverId, o: { sample: boolean; databases: boolean }): string {
+  return [
+    system(driver),
+    '',
+    'You can look at the database through read-only tools. They never change data, and you cannot run the query: the user runs it.',
+    'How to work:',
+    '- If the task has several parts, first write a short plan with write_todos (2 to 5 items) and keep it updated. For a simple request, skip the plan.',
+    `- The schema in the request may be incomplete. Confirm every table and column you use with ${o.databases ? 'list_databases, ' : ''}list_tables or describe_table. Never guess a name.`,
+    o.sample ? '- Use sample_rows only when the values matter (formats, codes, NULLs).' : '',
+    '- Before you answer with SQL, pass the exact SQL to check_sql and fix every error it reports. Check it again after a fix.',
+    '- Be efficient: a few tool calls are usually enough. Do not look at tables the request does not need.',
+    '- Your final message is all the user sees of your answer: write it in the shape the request asks for, with the SQL in one ```sql code block.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 const block = (sql: string) => '```sql\n' + sql.trim() + '\n```';
 
 export function explain(sql: string, schema: string): string {
@@ -102,7 +120,7 @@ export function generate(request: string, schema: string): string {
   return `Write one query for this request:
 "${request.trim()}"
 
-Answer with one short sentence on how the query works, then the query in one sql code block.
+Answer with one short sentence on how the query works, then the SQL in one sql code block. If the request needs several statements (for example a CREATE TABLE, then a query that uses it), put all of them in that block, in order.
 Use the exact table and column names from the schema below. If the request needs a table or column that is not in it, do not guess: say which one is missing and write no query, unless the request is to create it.
 
 Schema:

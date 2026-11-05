@@ -3,15 +3,19 @@
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import type { ConnectionConfig } from '../db/types';
+import { DRIVERS, type ConnectionConfig, type Session } from '../db/types';
+import { splitStatements } from '../db/splitter';
+import { useIn, type Where } from '../schema/where';
 import { findOutput, outputId, type Kernels } from '../notebook/kernels';
 import { SQL_LANGUAGE, isSqlLanguage } from '../notebook/serializer';
 import type { SchemaCache } from '../schema/cache';
 import { AI_MIME, RESULT_MIME, isSchemaChange, type AiKind, type AiPayload, type ResultPayload } from '../../shared/protocol';
 import * as P from './prompts';
 import type { AiConfig, Provider } from './models';
+import type { AgentHandlers, TableArgs } from './agent';
+import { createdTables, quoter, splitName, tableRefs } from './sqlnames';
 
-type AiModule = typeof import('./models');
+type AiModule = typeof import('./index');
 
 const PROVIDERS: { id: Provider; label: string; detail: string; needsKey: boolean }[] = [
   { id: 'openai', label: 'OpenAI', detail: 'GPT models. Needs an API key.', needsKey: true },
@@ -148,6 +152,7 @@ export class AiService {
     kind: AiKind,
     build: () => Promise<{ system: string; user: string }>,
     exec?: vscode.NotebookCellExecution,
+    agent?: { system: string; tools: AgentHandlers },
   ): Promise<AiPayload | undefined> {
     const cfg = await this.ready();
     if (!cfg) {
@@ -176,17 +181,48 @@ export class AiService {
       };
       try {
         const { system, user } = await build();
-        let acc = '';
-        for await (const t of this.load().streamText(cfg, system, user, abort.signal)) {
-          acc += t;
-          payload.markdown = P.stripThinking(acc);
-          push();
+        let answered = false;
+        if (agent && this.mode() === 'agent') {
+          try {
+            payload.steps = [];
+            payload.todos = [];
+            const r = await this.load().runAgent(cfg, {
+              system: agent.system,
+              user,
+              handlers: agent.tools,
+              signal: abort.signal,
+              onUpdate: (p) => {
+                payload.markdown = P.stripThinking(p.text);
+                payload.steps = p.steps;
+                payload.todos = p.todos;
+                push();
+              },
+            });
+            payload.markdown = P.stripThinking(r.text);
+            answered = true;
+          } catch (e) {
+            if (!(e as { noToolSupport?: boolean })?.noToolSupport) throw e;
+            // The model cannot call tools: answer the plain way instead.
+            payload.steps = payload.todos = undefined;
+            payload.markdown = '';
+            payload.notice = `${cfg.model} cannot use tools, so it answered without checking the database. Pick a model with tool calling for agent mode.`;
+            push(true);
+          }
+        }
+        if (!answered) {
+          let acc = '';
+          for await (const t of this.load().streamText(cfg, system, user, abort.signal)) {
+            acc += t;
+            payload.markdown = P.stripThinking(acc);
+            push();
+          }
         }
         payload.status = 'done';
         if (kind !== 'explain' && kind !== 'result') payload.sql = P.extractSql(payload.markdown);
       } catch (e) {
         payload.status = 'error';
         payload.markdown = abort.signal.aborted ? 'Stopped.' : `**AI error:** ${e instanceof Error ? e.message : String(e)}`;
+        for (const st of payload.steps ?? []) if (st.status === 'running') st.status = 'error';
       } finally {
         sub.dispose();
         push(true);
@@ -246,7 +282,7 @@ export class AiService {
     const sql = f.cell.document.getText();
     const err = result.error;
     const detail = `${err.message}${err.code ? ` (code ${err.code})` : ''}${err.statementCount > 1 ? `\nFailing statement ${err.statementIndex + 1} of ${err.statementCount}:\n${err.sql}` : ''}`;
-    await this.streamInto(f.nb, f.cell, 'fix', async () => ({ system: P.system(conn.driver), user: P.fix(sql, detail, await this.schemaText(f.nb, f.cell, conn, sql)) }));
+    await this.streamInto(f.nb, f.cell, 'fix', async () => ({ system: P.system(conn.driver), user: P.fix(sql, detail, await this.schemaText(f.nb, f.cell, conn, sql)) }), undefined, await this.agentFor(f.nb, f.cell, conn));
   }
 
   async explainResult(outputId: string, index: number) {
@@ -316,7 +352,7 @@ export class AiService {
       await exec.clearOutput();
       return true;
     }
-    const payload = await this.streamInto(nb, cell, 'generate', async () => ({ system: P.system(conn.driver), user: P.generate(request, await this.schemaText(nb, cell, conn, request)) }), exec);
+    const payload = await this.streamInto(nb, cell, 'generate', async () => ({ system: P.system(conn.driver), user: P.generate(request, await this.schemaText(nb, cell, conn, request)) }), exec, await this.agentFor(nb, cell, conn));
     if (!payload || payload.status !== 'done' || !payload.sql) return false;
 
     const next = cell.index + 1 < nb.cellCount ? nb.cellAt(cell.index + 1) : undefined;
@@ -337,11 +373,204 @@ export class AiService {
     return true;
   }
 
+  // ---------- Agent mode ----------
+
+  private mode(): 'agent' | 'direct' {
+    return vscode.workspace.getConfiguration('sqlNotebook.ai').get<'agent' | 'direct'>('mode', 'agent');
+  }
+
+  /** Rows never leave this computer with a local model. */
+  private isLocal(ai: AiConfig) {
+    return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(ai.baseUrl ?? DEFAULT_OLLAMA) && (ai.provider === 'ollama' || ai.provider === 'custom');
+  }
+
+  /** The agent's system prompt and read-only tools for a cell. */
+  private async agentFor(nb: vscode.NotebookDocument, cell: vscode.NotebookCell, conn: ConnectionConfig): Promise<{ system: string; tools: AgentHandlers } | undefined> {
+    if (this.mode() !== 'agent') return undefined;
+    const where = this.kernels.whereFor(nb, cell, conn);
+    const d = conn.driver;
+    const lines = (xs: string[], none: string) => (xs.length ? xs.slice(0, 300).join('\n') + (xs.length > 300 ? `\n… and ${xs.length - 300} more` : '') : none);
+
+    /** Where a table lives: "db.schema.table", "schema.table" or a plain name plus arguments. */
+    const place = (a: Partial<TableArgs>) => {
+      const parts = a.table ? splitName(a.table) : [];
+      const table = parts.pop();
+      let database = a.database;
+      let schema = a.schema;
+      if (parts.length === 2) [database, schema] = parts;
+      else if (parts.length === 1) {
+        if (d === 'mysql') database = parts[0];
+        else schema = parts[0];
+      }
+      if (d === 'mssql') return { table, database: database ?? where.database, container: schema ?? (database && database !== where.database ? 'dbo' : (where.container ?? 'dbo')) };
+      if (d === 'mysql') return { table, database: undefined, container: database ?? schema ?? where.container };
+      if (d === 'sqlite') return { table, database: undefined, container: undefined };
+      return { table, database: undefined, container: schema ?? where.container };
+    };
+
+    /** Tables that SQL checked earlier in this answer creates. */
+    const created = new Set<string>();
+    const tools: AgentHandlers = {
+      listTables: async (a) => {
+        const p = place(a);
+        const t = await this.schema.tables(conn, p.container, p.database);
+        return lines(t.map((x) => (x.type === 'view' ? `${x.name} (view)` : x.name)), 'No tables found here.');
+      },
+      describeTable: async (a) => {
+        const p = place(a);
+        const cols = await this.schema.columns(conn, p.table ?? '', p.container, p.database);
+        if (!cols.length) return `Error: table ${a.table} was not found${p.container ? ` in ${[p.database, p.container].filter(Boolean).join('.')}` : ''}. Use list_tables to see the tables.`;
+        return cols.map((c) => `${c.name} ${c.type}${c.pk ? ' primary key' : ''}${c.nullable === false && !c.pk ? ' not null' : ''}`).join('\n');
+      },
+      checkSql: async (a) => this.checkSql(nb, conn, where, a.sql, a.standalone ? new Set() : created),
+    };
+    if (d === 'mssql') {
+      tools.listDatabases = async () => {
+        const here = where.database ?? (await this.schema.location(conn).catch(() => undefined))?.database;
+        const all = await this.schema.databases(conn);
+        return `The notebook is in ${here ?? 'the default database'}.\nUser databases:\n${lines(all, '(none)')}`;
+      };
+    } else if (d === 'mysql') {
+      tools.listDatabases = async () => {
+        const all = (await this.schema.containers(conn)) ?? [];
+        return `Current database: ${where.container ?? '(none selected)'}\nDatabases:\n${lines(all, '(none)')}`;
+      };
+    }
+    const allowRows = vscode.workspace.getConfiguration('sqlNotebook.ai').get<boolean>('allowResultData', false);
+    if (allowRows || this.isLocal(await this.config())) tools.sampleRows = (a) => this.sampleRows(nb, conn, place(a));
+    return { system: P.agentSystem(d, { sample: !!tools.sampleRows, databases: !!tools.listDatabases }), tools };
+  }
+
+  /** Runs statements on the AI's own session and returns their results. */
+  private async runQuiet(session: Session, statements: string[], maxRows = 20) {
+    const results: import('../../shared/protocol').StatementResult[] = [];
+    await session.run(statements, { maxRows, onStart: () => undefined, onResult: (r) => results.push(r) });
+    return results;
+  }
+
+  private async sampleRows(nb: vscode.NotebookDocument, conn: ConnectionConfig, p: { table?: string; database?: string; container?: string }) {
+    if (!p.table) return 'Error: name a table.';
+    const q = quoter(conn.driver);
+    const name = [p.database, p.container, p.table].filter((x): x is string => !!x).map(q).join('.');
+    const sql = conn.driver === 'mssql' ? `SELECT TOP 5 * FROM ${name}` : `SELECT * FROM ${name} LIMIT 5`;
+    try {
+      const [r] = await this.runQuiet(await this.kernels.aiSession(nb, conn), [sql], 5);
+      if (!r?.hasRows || !r.rows.length) return 'The table is empty.';
+      const cut = (v: unknown) => (typeof v === 'string' && v.length > 80 ? v.slice(0, 80) + '…' : v);
+      return toCsv(r.columns.map((c) => c.name), r.rows.map((row) => row.map(cut))) || 'No rows.';
+    } catch (e) {
+      return `Error: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
+  /**
+   * Checks SQL without running it. SQL Server: each batch is compiled under
+   * SET NOEXEC ON (in the same batch: the connection pool resets SET options
+   * between requests), and table names are looked up with OBJECT_ID, since
+   * NOEXEC defers missing-table errors. Others: EXPLAIN each statement, up to
+   * the first CREATE/ALTER/DROP, which later statements may depend on.
+   */
+  async checkSql(nb: vscode.NotebookDocument, conn: ConnectionConfig, where: Where, sql: string, created = new Set<string>()): Promise<string> {
+    const text = sql.trim();
+    if (!text) return 'Error: no SQL given.';
+    if (/\b(noexec|showplan_\w+|parseonly|fmtonly)\b/i.test(text)) return 'Error: check_sql cannot check SQL that changes NOEXEC, SHOWPLAN, PARSEONLY or FMTONLY.';
+    const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+    let session: Session;
+    try {
+      session = await this.kernels.aiSession(nb, conn);
+    } catch (e) {
+      return `Could not connect to check the SQL: ${msg(e)}. Answer without the check.`;
+    }
+
+    if (conn.driver === 'mssql') {
+      // A USE in the SQL itself is not run under NOEXEC: switch first, so
+      // names resolve where the SQL will run.
+      const db = useIn(text, 'mssql')?.database ?? where.database;
+      const use = db ? `USE ${quoter('mssql')(db)};\n` : '';
+      const batches = splitStatements(text, 'mssql').map((s) => s.sql);
+      for (let i = 0; i < batches.length; i++) {
+        try {
+          await this.runQuiet(session, [`${use}SET NOEXEC ON;\n${batches[i]}\n;SET NOEXEC OFF;`]);
+        } catch (e) {
+          return `Failed${batches.length > 1 ? ` in batch ${i + 1}` : ''}: ${msg(e)}`;
+        } finally {
+          await this.runQuiet(session, ['SET NOEXEC OFF']).catch(() => undefined);
+        }
+      }
+      // Tables created by SQL checked earlier in this answer do not exist yet.
+      const refs = tableRefs(text, created);
+      for (const t of createdTables(text)) created.add(t);
+      if (refs.length) {
+        const list = refs.map((r) => `OBJECT_ID(N'${r.replace(/'/g, "''")}')`).join(', ');
+        try {
+          const [r] = await this.runQuiet(session, [`${use}SELECT ${list}`]);
+          const missing = refs.filter((_, k) => r?.rows[0]?.[k] === null);
+          if (missing.length) return `Failed: ${missing.map((m) => `table ${m}`).join(', ')} not found${db ? ` in ${db}` : ''}. Use list_tables.`;
+        } catch {
+          // The names were checked by the compile step as well as SQL Server allows.
+        }
+      }
+      return 'OK: the SQL compiles and every table exists. Nothing was run.';
+    }
+
+    const stmts = splitStatements(text, conn.driver).map((s) => s.sql.trim().replace(/;\s*$/, '')).filter(Boolean);
+    const q = quoter(conn.driver);
+    const setup = where.container && conn.driver === 'mysql' ? [`USE ${q(where.container)}`] : where.container && conn.driver === 'postgres' ? [`SET search_path TO ${q(where.container)}`] : [];
+    try {
+      if (setup.length) await this.runQuiet(session, setup);
+    } catch {
+      // Check where the session is.
+    }
+    // Schema changes are never run, so later statements may use a table that
+    // does not exist yet: those are skipped, not failed.
+    const creates = new Set([...created, ...createdTables(text)]);
+    let checked = 0;
+    let ddl = 0;
+    let skipped = 0;
+    for (let i = 0; i < stmts.length; i++) {
+      const s = stmts[i];
+      if (/^\s*(create|alter|drop|truncate|rename|comment|grant|revoke)\b/i.test(s)) {
+        ddl++;
+        continue;
+      }
+      // Switching database or schema is safe on the AI's own session (server
+      // databases only: file databases share the notebook's session).
+      if ((conn.driver === 'mysql' && /^\s*use\s/i.test(s)) || (conn.driver === 'postgres' && /^\s*set\s+search_path\s/i.test(s))) {
+        try {
+          await this.runQuiet(session, [s]);
+        } catch (e) {
+          return `Failed on statement ${i + 1}: ${msg(e)}`;
+        }
+        continue;
+      }
+      if (!/^\s*(select|with|insert|update|delete|replace|values|table)\b/i.test(s)) continue;
+      try {
+        await this.runQuiet(session, [`EXPLAIN ${s}`]);
+        checked++;
+      } catch (e) {
+        const m = msg(e);
+        if ([...creates].some((t) => m.toLowerCase().includes(t))) {
+          skipped++;
+          continue;
+        }
+        const where = stmts.length > 1 ? ` on statement ${i + 1}` : '';
+        if (ddl) return `Statement ${i + 1} could not be checked: ${m}. It comes after a schema change that check_sql does not run, which may be the reason.`;
+        return `Failed${where}: ${m}`;
+      }
+    }
+    for (const t of createdTables(text)) created.add(t);
+    const notes = [ddl ? `${ddl} schema change(s) (CREATE, ALTER, DROP…) were not checked` : '', skipped ? `${skipped} statement(s) use a table the SQL creates, so they were not checked` : ''].filter(Boolean);
+    if (!checked) return notes.length ? `Nothing could be checked: ${notes.join('; ')}.` : 'Nothing to check: no SELECT, INSERT, UPDATE or DELETE.';
+    return `OK: ${checked} statement(s) compile. Nothing was run.${notes.length ? ` ${notes.join('; ')}.` : ''}`;
+  }
+
   /** The tables where the cell's names resolve: after USE, that database's. */
   private schemaText(nb: vscode.NotebookDocument, cell: vscode.NotebookCell, conn: ConnectionConfig, focus: string) {
     return this.schema.describeForAi(conn, focus, this.kernels.whereFor(nb, cell, conn)).catch((e) => `(schema unavailable: ${e instanceof Error ? e.message : String(e)})`);
   }
 }
+
+const DEFAULT_OLLAMA = 'http://localhost:11434';
 
 export function toCsv(header: string[], rows: unknown[][]): string {
   const esc = (v: unknown) => {

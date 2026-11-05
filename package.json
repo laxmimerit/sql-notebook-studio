@@ -252,9 +252,9 @@
       },
       {
         "command": "sqlNotebook.insertAiCell",
-        "title": "AI Cell",
+        "title": "AI Prompt",
         "category": "SQL Notebook Studio",
-        "icon": "$(sparkle)"
+        "icon": "$(add)"
       },
       {
         "command": "sqlNotebook.variables",
@@ -400,7 +400,7 @@
         {
           "command": "sqlNotebook.insertAiCell",
           "when": "notebookType == sqlnb",
-          "group": "navigation/add@1"
+          "group": "navigation/add@3"
         },
         {
           "command": "sqlNotebook.variables",
@@ -634,16 +634,30 @@
           "order": 12,
           "description": "API base URL for Ollama or a custom provider, for example http://localhost:11434/v1."
         },
+        "sqlNotebook.ai.mode": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "direct"
+          ],
+          "enumDescriptions": [
+            "AI cells and Fix work as an agent: plan, look up tables and columns, check the SQL against the database, then answer. Each step is shown in the AI card.",
+            "One call to the model with the schema. Faster, fewer tokens, no checks."
+          ],
+          "default": "agent",
+          "order": 13,
+          "description": "How AI cells and Fix with AI work. Agent mode needs a model that can call tools; with one that cannot, the answer is made directly. Explain, Optimize and Explain Result always answer directly."
+        },
         "sqlNotebook.ai.allowResultData": {
           "type": "boolean",
           "default": false,
-          "order": 13,
+          "order": 14,
           "description": "Send result rows to the AI for Explain Result without asking. Off by default: only the schema and your SQL are sent. A local model (Ollama or a custom API on localhost) never asks, since rows stay on this computer."
         },
         "sqlNotebook.ai.runGeneratedSql": {
           "type": "boolean",
           "default": false,
-          "order": 14,
+          "order": 15,
           "description": "Run SQL from an AI cell right after it is generated."
         },
         "sqlNotebook.export.maxRows": {
@@ -732,7 +746,10 @@
     "package:all": "python scripts/package-all.py"
   },
   "dependencies": {
-    "@duckdb/node-api": "^2.0.0-r.1"
+    "@duckdb/node-api": "^2.0.0-r.1",
+    "@langchain/langgraph": "1.7.0",
+    "langchain": "^1.6.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@langchain/anthropic": "^1.6.0",

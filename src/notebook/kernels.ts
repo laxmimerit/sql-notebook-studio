@@ -157,6 +157,16 @@ export class Kernels implements vscode.Disposable {
   }
 
   /**
+   * The AI's own session for a notebook, for read-only checks, so they never
+   * touch the notebook's session state. Closed with the notebook. File
+   * databases use the notebook's session (DuckDB locks its file per process).
+   */
+  aiSession(nb: vscode.NotebookDocument, conn: ConnectionConfig): Promise<Session> {
+    if (DRIVERS[conn.driver].fileBased) return this.session(nb, conn);
+    return this.manager.get(ownerFor(conn, `${nb.uri.toString()}|ai`), conn);
+  }
+
+  /**
    * Where a cell's table names resolve, for autocomplete and the AI: a USE
    * earlier in the cell (before `upTo`, the text before the cursor), else where
    * the notebook's session is after its last run, else a USE in an earlier cell

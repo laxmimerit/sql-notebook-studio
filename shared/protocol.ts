@@ -76,6 +76,28 @@ export interface AiPayload {
   sql?: string;
   model: string;
   note?: string;
+  /** Agent mode: the plan the model wrote with write_todos, latest version. */
+  todos?: AiTodo[];
+  /** Agent mode: what the model did, in order (tool calls and their results). */
+  steps?: AiStep[];
+  /** A short line under the answer, e.g. why agent mode fell back to a direct answer. */
+  notice?: string;
+}
+
+export interface AiTodo {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+}
+
+export interface AiStep {
+  id: string;
+  kind: 'plan' | 'tool' | 'thought';
+  title: string;
+  /** Tool input, e.g. the SQL given to check_sql. */
+  input?: string;
+  /** Tool result or the model's note, shortened. */
+  output?: string;
+  status: 'running' | 'done' | 'error';
 }
 
 // Messages the renderer sends to the extension.

@@ -213,3 +213,32 @@
   .sqlnb .ai-skeleton span { animation: none; }
   .sqlnb .codicon-modifier-spin { animation: none; }
 }
+
+/* AI agent trace: the plan and each step, in a fold */
+.sqlnb .ai-trace { margin: 4px 0 6px; border: 1px solid var(--b); border-radius: 4px; background: var(--vscode-editor-background); }
+.sqlnb .ai-trace > summary { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; list-style: none; user-select: none; }
+.sqlnb .ai-trace > summary::-webkit-details-marker { display: none; }
+.sqlnb .ai-trace > summary:hover { background: var(--hover); }
+.sqlnb .ai-trace > summary:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.sqlnb .ai-trace .chev { transition: transform 0.12s; }
+.sqlnb .ai-trace[open] > summary .chev { transform: rotate(90deg); }
+.sqlnb .ai-trace-title { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlnb .ai-trace.busy .ai-trace-title { color: var(--vscode-descriptionForeground); }
+.sqlnb .ai-todos, .sqlnb .ai-steps { list-style: none; margin: 0; padding: 4px 10px 6px 28px; }
+.sqlnb .ai-todos { border-bottom: 1px dashed var(--b); }
+.sqlnb .ai-todos li, .sqlnb .ai-step > span, .sqlnb .ai-step summary { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; line-height: 18px; }
+.sqlnb .ai-todos .codicon, .sqlnb .ai-step .codicon { flex: none; margin-top: 1px; font-size: 14px; }
+.sqlnb .ai-todos li.completed { color: var(--vscode-descriptionForeground); }
+.sqlnb .ai-todos li.completed .codicon { color: var(--vscode-testing-iconPassed, var(--vscode-charts-green)); }
+.sqlnb .ai-todos li.in_progress .codicon { color: var(--vscode-charts-purple, var(--vscode-focusBorder)); }
+.sqlnb .ai-step { margin: 0; }
+.sqlnb .ai-step summary { cursor: pointer; list-style: none; }
+.sqlnb .ai-step summary::-webkit-details-marker { display: none; }
+.sqlnb .ai-step summary:hover span { text-decoration: underline; }
+.sqlnb .ai-step.done > span .codicon-check, .sqlnb .ai-step.done summary .codicon-check { color: var(--vscode-testing-iconPassed, var(--vscode-charts-green)); }
+.sqlnb .ai-step.error .codicon-warning { color: var(--vscode-editorWarning-foreground); }
+.sqlnb .ai-step .codicon-comment { color: var(--vscode-descriptionForeground); }
+.sqlnb .ai-io { margin: 3px 0 6px 21px; padding: 6px 8px; border-radius: 3px; background: var(--vscode-textCodeBlock-background); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
+.sqlnb .ai-io.in { border-left: 2px solid var(--vscode-charts-purple, var(--vscode-focusBorder)); }
+.sqlnb .ai-notice { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .sqlnb .ai-trace .chev { transition: none; } }

@@ -36,7 +36,7 @@ const contexts = await Promise.all([
       'drivers/duckdb': 'src/db/drivers/duckdb.ts',
       'drivers/sqlite': 'src/db/drivers/sqlite.ts',
       tunnel: 'src/db/tunnel.ts',
-      ai: 'src/ai/models.ts',
+      ai: 'src/ai/index.ts',
     },
     outdir: 'dist',
     platform: 'node',

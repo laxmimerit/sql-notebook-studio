@@ -158,7 +158,7 @@ AI is optional and off until you set it up: run **SQL Notebook Studio: Configure
 
 | Feature | What it does |
 | --- | --- |
-| **AI cell** | Write what you want in plain words. The SQL appears in the next cell, ready to run. |
+| **AI cell** | Write what you want in plain words. The SQL appears in the next cell, ready to run. Add one with **+ AI Prompt** in the notebook toolbar, or **Add AI Prompt Below** in any cell's toolbar. |
 | **Fix with AI** | On an error, shows the cause and a corrected query. Apply it in one click. |
 | **Explain** | Explains a query step by step. |
 | **Optimize** | Reads the query plan and suggests a faster query or an index. |

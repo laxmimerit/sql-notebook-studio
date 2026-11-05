@@ -204,15 +204,27 @@ export function activate(ctx: vscode.ExtensionContext) {
   cmd('sqlNotebook.configureAI', () => ai.configure());
   cmd('sqlNotebook.explainCell', (cell?: vscode.NotebookCell) => ai.explainCell(cell));
   cmd('sqlNotebook.optimizeCell', (cell?: vscode.NotebookCell) => ai.optimizeCell(cell));
-  cmd('sqlNotebook.insertAiCell', async () => {
-    const editor = vscode.window.activeNotebookEditor;
-    if (!editor) return;
-    const index = editor.selection ? editor.selection.end : editor.notebook.cellCount;
+  /** Adds an empty AI prompt cell at `index` and puts the cursor in it. */
+  const insertAiCell = async (editor: vscode.NotebookEditor, index: number) => {
     const edit = new vscode.WorkspaceEdit();
     edit.set(editor.notebook.uri, [vscode.NotebookEdit.insertCells(index, [new vscode.NotebookCellData(vscode.NotebookCellKind.Code, '', AI_LANGUAGE)])]);
     await vscode.workspace.applyEdit(edit);
     editor.selection = new vscode.NotebookRange(index, index + 1);
     await vscode.commands.executeCommand('notebook.cell.edit');
+  };
+  cmd('sqlNotebook.insertAiCell', async () => {
+    const editor = vscode.window.activeNotebookEditor;
+    if (!editor) return;
+    await insertAiCell(editor, editor.selection ? editor.selection.end : editor.notebook.cellCount);
+  });
+  // The cell toolbar's button: VS Code keeps the "+ Code / + Markdown" row
+  // between cells to itself, so this is the way to add a prompt below a cell.
+  cmd('sqlNotebook.insertAiCellBelow', async (cell?: vscode.NotebookCell) => {
+    const editor = vscode.window.activeNotebookEditor;
+    if (!editor) return;
+    const c = cell ?? editor.notebook.cellAt(editor.selection.start);
+    const shown = vscode.window.visibleNotebookEditors.find((e) => e.notebook === c.notebook) ?? editor;
+    await insertAiCell(shown, c.index + 1);
   });
 
   cmd('sqlNotebook.toggleUppercaseKeywords', () => toggleUppercase());

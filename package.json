@@ -239,6 +239,12 @@
         "icon": "$(sparkle)"
       },
       {
+        "command": "sqlNotebook.insertAiCellBelow",
+        "title": "Add AI Prompt Below",
+        "category": "SQL Notebook Studio",
+        "icon": "$(chat-sparkle)"
+      },
+      {
         "command": "sqlNotebook.explainCell",
         "title": "Explain with AI",
         "category": "SQL Notebook Studio",
@@ -434,6 +440,11 @@
       ],
       "notebook/cell/title": [
         {
+          "command": "sqlNotebook.insertAiCellBelow",
+          "when": "notebookType == sqlnb",
+          "group": "inline@0"
+        },
+        {
           "command": "sqlNotebook.explainCell",
           "when": "notebookType == sqlnb && notebookCellType == code",
           "group": "inline@1"
@@ -463,6 +474,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "sqlNotebook.insertAiCellBelow",
+          "when": "false"
+        },
         {
           "command": "sqlNotebook.editConnection",
           "when": "false"

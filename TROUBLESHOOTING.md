@@ -330,6 +330,16 @@ and tell the model to say a table is missing instead of guessing. On 1.0.2 or
 earlier: run `USE MyDatabase;` in a cell first, or set **Database** in the
 connection.
 
+**There is a "Generate" button, and no "+ AI Prompt" between cells.**
+**Generate** is VS Code's own Copilot chat button, not SQL Notebook Studio's,
+and VS Code shows it in every notebook. To hide it, set both
+`"notebook.experimental.generate": false` and
+`"notebook.experimental.cellChat": false` in your user settings (this hides it
+in Jupyter notebooks too). The "+ Code / + Markdown" row between cells belongs
+to VS Code and extensions can't add to it. Add an AI prompt with **+ AI
+Prompt** in the notebook toolbar, or the **Add AI Prompt Below** button (chat
+sparkle icon) in any cell's toolbar.
+
 **"… cannot use tools, so it answered without checking the database".**
 Agent mode (the default for AI cells and Fix with AI) needs a model that can
 call tools. This model can't, so the answer was made the direct way, without

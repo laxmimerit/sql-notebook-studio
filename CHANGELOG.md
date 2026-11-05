@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Every cell's toolbar has an **Add AI Prompt Below** button (chat sparkle icon). VS Code keeps the "+ Code / + Markdown" row between cells to itself, so this is how to add a prompt right under a cell.
+
 ## 1.1.0
 
 - AI cells and Fix with AI now work as an agent (LangChain `createAgent` with the to-do list middleware). For a task with several parts the model writes a plan first. It looks up databases, tables and columns with read-only tools, and checks its SQL against the database without running it (SQL Server: `SET NOEXEC ON` plus a table lookup; others: `EXPLAIN`). The final SQL is always checked once more; if that fails, the model fixes it, up to twice.

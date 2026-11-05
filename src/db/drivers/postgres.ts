@@ -118,6 +118,10 @@ class PgSession implements Session {
     return r[0].s;
   }
 
+  async location() {
+    return { container: await this.defaultContainer() };
+  }
+
   async listTables(container?: string): Promise<TableInfo[]> {
     const schema = container ?? (await this.defaultContainer());
     const r = await this.q<{ n: string; t: string }>(

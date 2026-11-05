@@ -92,11 +92,16 @@ export interface Session {
   cancel(): Promise<void>;
   close(): Promise<void>;
   serverVersion(): Promise<string>;
-  /** Databases (MySQL) or schemas (PostgreSQL, SQL Server). Undefined for flat drivers. */
-  listContainers(): Promise<string[] | undefined>;
+  /**
+   * Databases (MySQL) or schemas (PostgreSQL, SQL Server). Undefined for flat drivers.
+   * `database` (SQL Server only) looks in another database on the same server.
+   */
+  listContainers(database?: string): Promise<string[] | undefined>;
   defaultContainer(): Promise<string | undefined>;
-  listTables(container?: string): Promise<TableInfo[]>;
-  listColumns(table: string, container?: string): Promise<ColumnInfo[]>;
+  listTables(container?: string, database?: string): Promise<TableInfo[]>;
+  listColumns(table: string, container?: string, database?: string): Promise<ColumnInfo[]>;
+  /** Where unqualified names resolve now, after any USE this session ran. */
+  location(): Promise<{ database?: string; container?: string }>;
   /** A plan for the query, used by Optimize with AI. */
   explain(sql: string): Promise<string | undefined>;
 }

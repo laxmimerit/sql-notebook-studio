@@ -111,6 +111,10 @@ class SqliteSession implements Session {
     return undefined;
   }
 
+  async location() {
+    return {};
+  }
+
   async listTables(): Promise<TableInfo[]> {
     const rows = await this.query(
       "select name, type from sqlite_schema where type in ('table','view') and name not like 'sqlite_%' order by name",

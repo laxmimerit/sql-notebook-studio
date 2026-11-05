@@ -220,7 +220,7 @@ export class AiService {
     if (!t || !isSqlLanguage(t.cell.document.languageId) || !t.cell.document.getText().trim()) return;
     const conn = this.kernels.connectionFor(t.nb, t.cell)!;
     const sql = t.cell.document.getText();
-    await this.streamInto(t.nb, t.cell, 'explain', async () => ({ system: P.system(conn.driver), user: P.explain(sql, await this.schemaText(conn, sql)) }));
+    await this.streamInto(t.nb, t.cell, 'explain', async () => ({ system: P.system(conn.driver), user: P.explain(sql, await this.schemaText(t.nb, t.cell, conn, sql)) }));
   }
 
   async optimizeCell(arg?: vscode.NotebookCell) {
@@ -233,7 +233,7 @@ export class AiService {
       if (/^\s*(select|with)\b/i.test(sql) && !sql.includes(';')) {
         plan = await this.kernels.session(t.nb, conn).then((s) => s.explain(sql)).catch(() => undefined);
       }
-      return { system: P.system(conn.driver), user: P.optimize(sql, await this.schemaText(conn, sql), plan) };
+      return { system: P.system(conn.driver), user: P.optimize(sql, await this.schemaText(t.nb, t.cell, conn, sql), plan) };
     });
   }
 
@@ -246,7 +246,7 @@ export class AiService {
     const sql = f.cell.document.getText();
     const err = result.error;
     const detail = `${err.message}${err.code ? ` (code ${err.code})` : ''}${err.statementCount > 1 ? `\nFailing statement ${err.statementIndex + 1} of ${err.statementCount}:\n${err.sql}` : ''}`;
-    await this.streamInto(f.nb, f.cell, 'fix', async () => ({ system: P.system(conn.driver), user: P.fix(sql, detail, await this.schemaText(conn, sql)) }));
+    await this.streamInto(f.nb, f.cell, 'fix', async () => ({ system: P.system(conn.driver), user: P.fix(sql, detail, await this.schemaText(f.nb, f.cell, conn, sql)) }));
   }
 
   async explainResult(outputId: string, index: number) {
@@ -316,7 +316,7 @@ export class AiService {
       await exec.clearOutput();
       return true;
     }
-    const payload = await this.streamInto(nb, cell, 'generate', async () => ({ system: P.system(conn.driver), user: P.generate(request, await this.schemaText(conn, request)) }), exec);
+    const payload = await this.streamInto(nb, cell, 'generate', async () => ({ system: P.system(conn.driver), user: P.generate(request, await this.schemaText(nb, cell, conn, request)) }), exec);
     if (!payload || payload.status !== 'done' || !payload.sql) return false;
 
     const next = cell.index + 1 < nb.cellCount ? nb.cellAt(cell.index + 1) : undefined;
@@ -337,8 +337,9 @@ export class AiService {
     return true;
   }
 
-  private schemaText(conn: ConnectionConfig, focus: string) {
-    return this.schema.describeForAi(conn, focus).catch((e) => `(schema unavailable: ${e instanceof Error ? e.message : String(e)})`);
+  /** The tables where the cell's names resolve: after USE, that database's. */
+  private schemaText(nb: vscode.NotebookDocument, cell: vscode.NotebookCell, conn: ConnectionConfig, focus: string) {
+    return this.schema.describeForAi(conn, focus, this.kernels.whereFor(nb, cell, conn)).catch((e) => `(schema unavailable: ${e instanceof Error ? e.message : String(e)})`);
   }
 }
 

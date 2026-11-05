@@ -105,9 +105,10 @@ class MssqlSession implements Session {
     return `SQL Server ${r[0].v} (${r[0].e})`;
   }
 
-  async listContainers() {
+  async listContainers(database?: string) {
+    const p = dbPrefix(database);
     const r = await this.q<{ n: string }>(
-      "select s.name as n from sys.schemas s where s.name = 'dbo' or exists (select 1 from sys.objects o where o.schema_id = s.schema_id and o.type in ('U','V')) order by 1",
+      `select s.name as n from ${p}sys.schemas s where s.name = 'dbo' or exists (select 1 from ${p}sys.objects o where o.schema_id = s.schema_id and o.type in ('U','V')) order by 1`,
     );
     return r.map((x) => x.n);
   }
@@ -117,24 +118,30 @@ class MssqlSession implements Session {
     return r[0].s;
   }
 
-  async listTables(container?: string): Promise<TableInfo[]> {
+  async location() {
+    const r = await this.q<{ d: string; s: string }>('select db_name() as d, schema_name() as s');
+    return { database: r[0].d, container: r[0].s };
+  }
+
+  async listTables(container?: string, database?: string): Promise<TableInfo[]> {
     const schema = container ?? (await this.defaultContainer());
     const r = await this.q<{ n: string; t: string }>(
-      'select table_name as n, table_type as t from information_schema.tables where table_schema = @s order by table_name',
+      `select table_name as n, table_type as t from ${dbPrefix(database)}information_schema.tables where table_schema = @s order by table_name`,
       { s: schema },
     );
     return r.map((x) => ({ name: x.n, type: /view/i.test(x.t) ? 'view' : 'table' }));
   }
 
-  async listColumns(table: string, container?: string): Promise<ColumnInfo[]> {
+  async listColumns(table: string, container?: string, database?: string): Promise<ColumnInfo[]> {
     const schema = container ?? (await this.defaultContainer());
+    const p = dbPrefix(database);
     const r = await this.q<{ n: string; t: string; nl: string; pk: number }>(
       `select c.column_name as n, c.data_type as t, c.is_nullable as nl,
-         case when exists (select 1 from information_schema.table_constraints tc
-           join information_schema.key_column_usage k on tc.constraint_name = k.constraint_name and tc.table_schema = k.table_schema
+         case when exists (select 1 from ${p}information_schema.table_constraints tc
+           join ${p}information_schema.key_column_usage k on tc.constraint_name = k.constraint_name and tc.table_schema = k.table_schema
            where tc.constraint_type = 'PRIMARY KEY' and tc.table_schema = c.table_schema and tc.table_name = c.table_name and k.column_name = c.column_name)
          then 1 else 0 end as pk
-       from information_schema.columns c where c.table_schema = @s and c.table_name = @t order by c.ordinal_position`,
+       from ${p}information_schema.columns c where c.table_schema = @s and c.table_name = @t order by c.ordinal_position`,
       { s: schema, t: table },
     );
     return r.map((x) => ({ name: x.n, type: x.t, pk: !!x.pk, nullable: x.nl === 'YES' }));
@@ -175,4 +182,9 @@ export async function open(conn: ResolvedConnection): Promise<Session> {
   pool.on('error', () => undefined);
   await pool.connect();
   return new MssqlSession(pool);
+}
+
+/** "[db]." for a three-part name in another database, or "" for the current one. */
+function dbPrefix(database?: string): string {
+  return database ? `[${database.replace(/]/g, ']]')}].` : '';
 }

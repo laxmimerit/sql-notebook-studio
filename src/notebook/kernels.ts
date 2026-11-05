@@ -13,6 +13,7 @@ import { AI_LANGUAGE, NOTEBOOK_TYPE, SQL_LANGUAGE } from './serializer';
 import { RESULT_MIME, type ResultPayload } from '../../shared/protocol';
 import type { AiService } from '../ai/service';
 import type { SchemaCache } from '../schema/cache';
+import { useIn, type Where } from '../schema/where';
 
 export class Kernels implements vscode.Disposable {
   private controllers = new Map<string, vscode.NotebookController>();
@@ -21,6 +22,8 @@ export class Kernels implements vscode.Disposable {
   private order = new Map<string, number>();
   private disposables: vscode.Disposable[] = [];
   private sessionValues = new Map<string, Record<string, string>>();
+  /** Where each notebook's session is after its last run, by "notebook uri|connection id". */
+  private locations = new Map<string, Where>();
   private readonly ranOk = new vscode.EventEmitter<string>();
   /** Fires with a connection id after a cell ran on it without error, so the explorer can recheck it. */
   readonly onDidRunOk = this.ranOk.event;
@@ -37,6 +40,7 @@ export class Kernels implements vscode.Disposable {
       vscode.workspace.onDidOpenNotebookDocument((nb) => this.setAffinity(nb)),
       vscode.workspace.onDidCloseNotebookDocument((nb) => {
         this.selected.delete(nb.uri.toString());
+        for (const k of [...this.locations.keys()]) if (k.startsWith(nb.uri.toString() + '|')) this.locations.delete(k);
         void this.manager.dropOwner(nb.uri.toString());
       }),
     );
@@ -150,6 +154,48 @@ export class Kernels implements vscode.Disposable {
 
   session(nb: vscode.NotebookDocument, conn: ConnectionConfig): Promise<Session> {
     return this.manager.get(ownerFor(conn, nb.uri.toString()), conn);
+  }
+
+  /**
+   * Where a cell's table names resolve, for autocomplete and the AI: a USE
+   * earlier in the cell (before `upTo`, the text before the cursor), else where
+   * the notebook's session is after its last run, else a USE in an earlier cell
+   * on the same connection. Empty means the connection's own database.
+   */
+  whereFor(nb: vscode.NotebookDocument, cell: vscode.NotebookCell, conn: ConnectionConfig, upTo?: string): Where {
+    const used = (text: string) => useIn(text, conn.driver);
+    const inCell = used(upTo ?? cell.document.getText());
+    if (inCell) return inCell;
+    const ran = this.locations.get(`${nb.uri.toString()}|${conn.id}`);
+    if (ran) return ran;
+    for (let i = cell.index - 1; i >= 0; i--) {
+      const c = nb.cellAt(i);
+      if (c.kind !== vscode.NotebookCellKind.Code || c.document.languageId !== SQL_LANGUAGE || this.connectionFor(nb, c)?.id !== conn.id) continue;
+      const w = used(c.document.getText());
+      if (w) return w;
+    }
+    return {};
+  }
+
+  /** After a run: look up where the session is, the first time and after a USE / SET. */
+  private noteLocation(nb: vscode.NotebookDocument, conn: ConnectionConfig, session: Session, text: string) {
+    const known = this.locations.has(`${nb.uri.toString()}|${conn.id}`);
+    if (!known || /^\s*(use|set\s+(search_path|schema))\b/im.test(text)) void this.recordLocation(nb, conn, session);
+  }
+
+  /** Notes where the session is now, after a run that may have switched database. */
+  private async recordLocation(nb: vscode.NotebookDocument, conn: ConnectionConfig, session: Session) {
+    const key = `${nb.uri.toString()}|${conn.id}`;
+    try {
+      const w = await Promise.race([session.location(), new Promise<undefined>((r) => setTimeout(() => r(undefined), 3000))]);
+      if (!w) return;
+      const where: Where = {};
+      if (w.database) where.database = w.database;
+      if (w.container) where.container = w.container;
+      this.locations.set(key, where);
+    } catch {
+      // Not important enough to report: autocomplete falls back to the connection's database.
+    }
   }
 
   private async interrupt(nb: vscode.NotebookDocument) {
@@ -319,6 +365,7 @@ export class Kernels implements vscode.Disposable {
       } catch (e) {
         if (!payload.results.length && isConnectionLost(e)) {
           await this.manager.drop(ownerFor(conn, key), conn.id);
+          this.locations.delete(`${key}|${conn.id}`); // a new session starts in the connection's own database
           set.delete(session);
           session = await this.session(nb, conn);
           set.add(session);
@@ -326,9 +373,12 @@ export class Kernels implements vscode.Disposable {
         } else throw e;
       }
       if (/^\s*(use|create|drop|alter|attach|detach|set\s+search_path)\b/im.test(text)) this.schema.invalidate(conn.id);
+      this.noteLocation(nb, conn, session, text);
       this.ranOk.fire(conn.id);
       return true;
     } catch (e) {
+      // A later statement failed, but an earlier USE may still have switched database.
+      if (e instanceof QueryFailure && !exec.token.isCancellationRequested) this.noteLocation(nb, conn, session, text);
       const index = e instanceof QueryFailure ? e.statementIndex : payload.running?.index ?? 0;
       const st = statements[Math.max(0, index)];
       let message = e instanceof Error ? e.message : String(e);

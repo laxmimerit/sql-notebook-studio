@@ -3,6 +3,7 @@
 
 import type { ColumnInfo, ConnectionConfig, Session, TableInfo } from '../db/types';
 import { isConnectionLost, isMemory, ownerFor, type SessionManager } from '../db/manager';
+import type { Where } from './where';
 
 const TTL = 5 * 60_000;
 
@@ -46,36 +47,40 @@ export class SchemaCache {
     }
   }
 
-  containers(conn: ConnectionConfig): Promise<string[] | undefined> {
-    return this.cached(`${conn.id}|containers`, () => this.withSession(conn, (s) => s.listContainers()));
+  // `database` (SQL Server only) looks in the database a notebook switched to
+  // with USE, through three-part names on the sidebar's own connection.
+
+  containers(conn: ConnectionConfig, database?: string): Promise<string[] | undefined> {
+    return this.cached(`${conn.id}|containers|${database ?? ''}`, () => this.withSession(conn, (s) => s.listContainers(database)));
   }
 
   defaultContainer(conn: ConnectionConfig): Promise<string | undefined> {
     return this.cached(`${conn.id}|default`, () => this.withSession(conn, (s) => s.defaultContainer()));
   }
 
-  tables(conn: ConnectionConfig, container?: string): Promise<TableInfo[]> {
-    return this.cached(`${conn.id}|tables|${container ?? ''}`, () => this.withSession(conn, (s) => s.listTables(container)));
+  tables(conn: ConnectionConfig, container?: string, database?: string): Promise<TableInfo[]> {
+    return this.cached(`${conn.id}|tables|${database ?? ''}|${container ?? ''}`, () => this.withSession(conn, (s) => s.listTables(container, database)));
   }
 
-  columns(conn: ConnectionConfig, table: string, container?: string): Promise<ColumnInfo[]> {
-    return this.cached(`${conn.id}|cols|${container ?? ''}|${table}`, () => this.withSession(conn, (s) => s.listColumns(table, container)));
+  columns(conn: ConnectionConfig, table: string, container?: string, database?: string): Promise<ColumnInfo[]> {
+    return this.cached(`${conn.id}|cols|${database ?? ''}|${container ?? ''}|${table}`, () => this.withSession(conn, (s) => s.listColumns(table, container, database)));
   }
 
   /** Compact schema text for AI prompts. Tables named in `focus` come first. */
-  async describeForAi(conn: ConnectionConfig, focus: string, budget = 12000): Promise<string> {
-    const container = await this.defaultContainer(conn).catch(() => undefined);
+  async describeForAi(conn: ConnectionConfig, focus: string, where: Where = {}, budget = 12000): Promise<string> {
+    const database = where.database;
+    const container = where.container ?? (await this.defaultContainer(conn).catch(() => undefined));
     let containers: (string | undefined)[] = [container];
     if (!container && conn.driver === 'mysql') containers = ((await this.containers(conn).catch(() => [])) ?? []).slice(0, 5);
     const lower = focus.toLowerCase();
     const parts: string[] = [];
     let used = 0;
     for (const c of containers) {
-      const tables = await this.tables(conn, c).catch(() => [] as TableInfo[]);
+      const tables = await this.tables(conn, c, database).catch(() => [] as TableInfo[]);
       const ranked = [...tables].sort((a, b) => Number(lower.includes(b.name.toLowerCase())) - Number(lower.includes(a.name.toLowerCase())));
       for (const t of ranked.slice(0, 80)) {
         if (used > budget) break;
-        const cols = await this.columns(conn, t.name, c).catch(() => [] as ColumnInfo[]);
+        const cols = await this.columns(conn, t.name, c, database).catch(() => [] as ColumnInfo[]);
         const name = c && containers.length > 1 ? `${c}.${t.name}` : t.name;
         const line = `${t.type === 'view' ? 'view ' : ''}${name}(${cols.map((x) => `${x.name} ${x.type}${x.pk ? ' pk' : ''}`).join(', ')})`;
         parts.push(line);

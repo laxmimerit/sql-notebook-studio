@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Autocomplete and the AI now look in the database the notebook switched to with `USE`, not only the one saved in the connection. Before, a SQL Server connection with no database set suggested `master`'s tables after `USE MyDatabase`, and MySQL suggested none. `USE` counts whether it is in the same cell, in an earlier cell, or already run.
+
 ## 1.0.1
 
 - If an old test copy (`kgptalkie.sql-notebook`) is also installed, the extension now steps aside and offers to uninstall it. Before, every button showed twice and the two copies kept separate connection lists, so a connection could work in a notebook but be missing from the sidebar.

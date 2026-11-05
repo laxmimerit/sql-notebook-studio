@@ -353,6 +353,10 @@ export function activate(ctx: vscode.ExtensionContext) {
   if (!ctx.globalState.get('sqlNotebook.welcomed')) {
     void ctx.globalState.update('sqlNotebook.welcomed', true);
   }
+
+  // Integration tests (VS Code's test runner only) add connections through this.
+  if (ctx.extensionMode === vscode.ExtensionMode.Test) return { store };
+  return undefined;
 }
 
 export function deactivate() {}

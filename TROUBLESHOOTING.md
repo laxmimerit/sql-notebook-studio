@@ -262,6 +262,14 @@ The cell needs a connection: check the notebook toolbar. Columns are suggested
 for tables named in the cell (after `FROM`, `JOIN`, `UPDATE` or `INTO`), and
 after `alias.` or `table.`. If you just created the table, click **↻ Refresh**.
 
+**Keywords are suggested, but not my tables (SQL Server or MySQL).**
+Autocomplete looks in the database the cell is in. Up to 1.0.1 it used the
+database saved in the connection, so with that field empty it looked in
+`master` (SQL Server) or nowhere (MySQL), even after `USE MyDatabase`. Newer
+versions follow `USE`: in the same cell, in an earlier cell, or the one the
+notebook last ran. On 1.0.1 or earlier, put the database in the connection's
+**Database** field (right-click the connection → **Edit Connection**).
+
 **A word turned into capitals when it shouldn't.**
 Press **Ctrl+Z** once to put it back. Names that exist in your database are
 never changed. To turn it off, run **SQL Notebook Studio: Toggle Uppercase

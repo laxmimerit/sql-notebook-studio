@@ -28,27 +28,32 @@ export class SqlCompletion implements vscode.CompletionItemProvider {
     const timeout = new Promise<undefined>((r) => setTimeout(() => r(undefined), 2500));
     const run = <T>(p: Promise<T>) => Promise.race([p.catch(() => undefined), timeout]) as Promise<T | undefined>;
 
+    // Look where the notebook is: after `USE MyDatabase`, its tables, not the
+    // tables of the database saved in the connection.
+    const where = this.kernels.whereFor(found.nb, found.cell, conn, before);
+    const db = where.database;
+    const container = where.container ?? (await run(this.cache.defaultContainer(conn)));
+
     if (dot) {
       const qual = unquote(dot[1]);
       const aliases = parseAliases(text);
       const target = aliases.get(qual.toLowerCase());
-      const containers = (await run(this.cache.containers(conn))) ?? [];
+      const containers = (await run(this.cache.containers(conn, db))) ?? [];
       if (!target && containers.some((c) => c.toLowerCase() === qual.toLowerCase())) {
-        const tables = (await run(this.cache.tables(conn, qual))) ?? [];
+        const tables = (await run(this.cache.tables(conn, qual, db))) ?? [];
         return tables.map((t) => tableItem(t.name, t.type));
       }
       const ref = target ?? { table: qual };
-      const cols = (await run(this.cache.columns(conn, ref.table, ref.container))) ?? [];
+      const cols = (await run(this.cache.columns(conn, ref.table, ref.container ?? container, db))) ?? [];
       return cols.map((c, i) => columnItem(c.name, c.type, c.pk, i));
     }
     if (token.isCancellationRequested) return [];
 
     const items: vscode.CompletionItem[] = [];
-    const container = await run(this.cache.defaultContainer(conn));
-    const tables = (await run(this.cache.tables(conn, container))) ?? [];
+    const tables = (await run(this.cache.tables(conn, container, db))) ?? [];
     for (const t of tables) items.push(tableItem(t.name, t.type));
-    if (conn.driver === 'mysql' || ((await run(this.cache.containers(conn)))?.length ?? 0) > 1) {
-      for (const c of (await run(this.cache.containers(conn))) ?? []) {
+    if (conn.driver === 'mysql' || ((await run(this.cache.containers(conn, db)))?.length ?? 0) > 1) {
+      for (const c of (await run(this.cache.containers(conn, db))) ?? []) {
         const it = new vscode.CompletionItem({ label: c, description: conn.driver === 'mysql' ? 'database' : 'schema' }, vscode.CompletionItemKind.Module);
         it.sortText = '3' + c;
         items.push(it);
@@ -59,7 +64,7 @@ export class SqlCompletion implements vscode.CompletionItemProvider {
       const key = `${ref.container ?? ''}.${ref.table}`.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      const cols = (await run(this.cache.columns(conn, ref.table, ref.container))) ?? [];
+      const cols = (await run(this.cache.columns(conn, ref.table, ref.container ?? container, db))) ?? [];
       cols.forEach((c, i) => {
         const it = columnItem(c.name, c.type, c.pk, i, ref.table);
         it.sortText = '0' + String(i).padStart(4, '0');

@@ -95,6 +95,10 @@ class DuckSession implements Session {
     return String(r[0].s);
   }
 
+  async location() {
+    return { container: await this.defaultContainer() };
+  }
+
   async listTables(container?: string): Promise<TableInfo[]> {
     const schema = container ?? (await this.defaultContainer());
     const r = await this.rows(

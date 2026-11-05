@@ -122,6 +122,10 @@ class MysqlSession implements Session {
     return r[0].d ?? undefined;
   }
 
+  async location() {
+    return { container: await this.defaultContainer() };
+  }
+
   async listTables(container?: string): Promise<TableInfo[]> {
     const db = container ?? (await this.defaultContainer());
     if (!db) return [];

@@ -51,6 +51,32 @@ yours. Wait and try again, or install the file from the
 Each file carries the DuckDB engine built for one system. If the editor says
 the extension isn't compatible with your platform, you have the wrong file.
 
+### Every button shows twice, or a connection is missing from the sidebar
+
+An old test copy of the extension, **kgptalkie.sql-notebook** (from a file
+named `sql-notebook-<system>-1.0.0.vsix`), is installed next to SQL Notebook
+Studio. The two copies keep separate connection lists, so you can see:
+
+- each toolbar and sidebar button twice, and each built-in database twice in
+  the connection picker;
+- a notebook running on a connection that the sidebar doesn't list;
+- "You already have a connection named …" for a name the sidebar doesn't show.
+
+Versions after 1.0.0 warn about this and offer **Uninstall Old Copy**.
+Or remove it yourself: in the Extensions view, uninstall the SQL Notebook
+Studio entry whose ID (shown on its page) is `kgptalkie.sql-notebook`, keep
+`kgptalkie.sql-notebook-studio`, and reload the window. Connections saved only
+in the old copy need to be added again.
+
+### "You already have a connection named …"
+
+Connection names must be unique. A new connection is named after its server,
+for example *SQL Server · localhost*; in versions after 1.0.0, if that name
+is taken, the form picks *SQL Server · localhost (2)*. To use the server you already saved,
+pick that connection in the sidebar or the notebook's connection picker
+instead of adding it again. Seeing this for a name the sidebar doesn't list
+means an old copy is installed: see above.
+
 ### `code: command not found`
 
 The terminal command isn't set up. On a Mac, open the Command Palette in VS

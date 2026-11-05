@@ -24,6 +24,12 @@ const ENVS: { id: EnvTag; label: string }[] = [
 type Has = { password: boolean; sshPassword: boolean; sshPassphrase: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'error'; text: string };
 
+/** base, or "base (2)", "base (3)"… whichever no other connection uses. */
+function freeName(base: string, taken: Set<string>): string {
+  if (!taken.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n++) if (!taken.has(`${base} (${n})`.toLowerCase())) return `${base} (${n})`;
+}
+
 function blank(name: string): ConnectionConfig {
   return { id: '', name, driver: 'mysql', host: 'localhost', port: 3306, user: '', database: '', env: 'none' };
 }
@@ -37,11 +43,14 @@ function App() {
   const [status, setStatus] = useState<Status>({ kind: 'idle', text: '' });
   const [paste, setPaste] = useState<string | null>(null);
   const nameTouched = useRef(false);
+  /** Names of the other saved connections, lowercased. */
+  const taken = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const m = e.data;
       if (m.type === 'init') {
+        taken.current = new Set(((m.names as string[] | undefined) ?? []).map((n) => n.toLowerCase()));
         setIsNew(!m.conn);
         setConn(m.conn ?? blank(m.suggestedName));
         nameTouched.current = !!m.conn;
@@ -83,7 +92,7 @@ function App() {
     const where = d.file
       ? (conn.file && conn.file !== ':memory:' ? conn.file.split(/[\\/]/).pop() : 'in memory')
       : `${conn.host || 'localhost'}${conn.database ? '/' + conn.database : ''}`;
-    const name = `${d.label} · ${where}`;
+    const name = freeName(`${d.label} · ${where}`, taken.current);
     if (name !== conn.name) setField('name', name);
   }, [conn?.driver, conn?.host, conn?.database, conn?.file, isNew]);
 

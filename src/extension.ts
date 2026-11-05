@@ -20,7 +20,18 @@ import { DRIVERS, type ConnectionConfig } from './db/types';
 import { toCsv } from './ai/service';
 import type { RendererMessage } from '../shared/protocol';
 
+/** Earlier IDs of this extension. A leftover copy registers the same commands and views. */
+const OLD_IDS = ['kgptalkie.sql-notebook'];
+
 export function activate(ctx: vscode.ExtensionContext) {
+  // With an old copy also installed, every button shows twice and the two
+  // copies keep separate connection lists. Step aside and ask to remove it.
+  const old = OLD_IDS.find((id) => vscode.extensions.getExtension(id));
+  if (old) {
+    void warnOldCopy(old);
+    return;
+  }
+
   const store = new ConnectionStore(ctx);
   const manager = new SessionManager(store, path.join(ctx.extensionPath, 'dist'));
   const schema = new SchemaCache(manager);
@@ -345,6 +356,17 @@ export function activate(ctx: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+async function warnOldCopy(id: string) {
+  const pick = await vscode.window.showWarningMessage(
+    `An old copy of SQL Notebook Studio (${id}) is also installed, so buttons show twice and connections are split between the two copies. Uninstall the old copy, then reload. Connections saved only in the old copy need to be added again.`,
+    'Uninstall Old Copy',
+  );
+  if (!pick) return;
+  await vscode.commands.executeCommand('workbench.extensions.uninstallExtension', id);
+  const reload = await vscode.window.showInformationMessage('Old copy removed. Reload VS Code to finish.', 'Reload');
+  if (reload) await vscode.commands.executeCommand('workbench.action.reloadWindow');
+}
 
 function defaultUri(name: string): vscode.Uri | undefined {
   const folder = vscode.workspace.workspaceFolders?.[0]?.uri;

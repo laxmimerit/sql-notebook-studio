@@ -55,6 +55,8 @@ export function openConnectionForm(deps: FormDeps, existing?: ConnectionConfig) 
             has: { password: !!saved.password, sshPassword: !!saved.sshPassword, sshPassphrase: !!saved.sshPassphrase },
             folders,
             suggestedName: store.uniqueName('New connection'),
+            // Lets the form give a new connection a free name, like "MySQL · localhost (2)".
+            names: store.list().filter((c) => c.id !== existing?.id).map((c) => c.name),
           });
           break;
         }
@@ -77,7 +79,7 @@ export function openConnectionForm(deps: FormDeps, existing?: ConnectionConfig) 
           const conn = { ...(msg.conn as ConnectionConfig), id: existing?.id ?? newId() };
           if (!conn.name?.trim()) throw new Error('Give the connection a name.');
           conn.name = conn.name.trim();
-          if (store.nameTaken(conn.name, conn.id)) throw new Error(`"${conn.name}" is already used. Pick another name.`);
+          if (store.nameTaken(conn.name, conn.id)) throw new Error(`You already have a connection named "${conn.name}" in the SQL Notebook sidebar. Use that one, or give this one another name.`);
           await store.save(conn, msg.secrets ?? {});
           if (existing) await manager.dropConnection(conn.id);
           deps.onSaved(conn);

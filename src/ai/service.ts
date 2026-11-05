@@ -353,7 +353,10 @@ export class AiService {
       return true;
     }
     const payload = await this.streamInto(nb, cell, 'generate', async () => ({ system: P.system(conn.driver), user: P.generate(request, await this.schemaText(nb, cell, conn, request)) }), exec, await this.agentFor(nb, cell, conn));
-    if (!payload || payload.status !== 'done' || !payload.sql) return false;
+    if (!payload || payload.status !== 'done') return false;
+    // An answer without SQL (a table is missing, the request is unclear) is
+    // still an answer: the cell ran fine, it just has nothing to put below.
+    if (!payload.sql) return true;
 
     const next = cell.index + 1 < nb.cellCount ? nb.cellAt(cell.index + 1) : undefined;
     const edit = new vscode.WorkspaceEdit();

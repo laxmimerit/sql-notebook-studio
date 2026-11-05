@@ -265,8 +265,8 @@ after `alias.` or `table.`. If you just created the table, click **↻ Refresh**
 **Keywords are suggested, but not my tables (SQL Server or MySQL).**
 Autocomplete looks in the database the cell is in. Up to 1.0.1 it used the
 database saved in the connection, so with that field empty it looked in
-`master` (SQL Server) or nowhere (MySQL), even after `USE MyDatabase`. Newer
-versions follow `USE`: in the same cell, in an earlier cell, or the one the
+`master` (SQL Server) or nowhere (MySQL), even after `USE MyDatabase`. From
+1.0.2 it follows `USE`: in the same cell, in an earlier cell, or the one the
 notebook last ran. On 1.0.1 or earlier, put the database in the connection's
 **Database** field (right-click the connection → **Edit Connection**).
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2
 
 - Autocomplete and the AI now look in the database the notebook switched to with `USE`, not only the one saved in the connection. Before, a SQL Server connection with no database set suggested `master`'s tables after `USE MyDatabase`, and MySQL suggested none. `USE` counts whether it is in the same cell, in an earlier cell, or already run.
 

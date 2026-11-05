@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - AI cells and Fix with AI now work as an agent (LangChain `createAgent` with the to-do list middleware). For a task with several parts the model writes a plan first. It looks up databases, tables and columns with read-only tools, and checks its SQL against the database without running it (SQL Server: `SET NOEXEC ON` plus a table lookup; others: `EXPLAIN`). The final SQL is always checked once more; if that fails, the model fixes it, up to twice.
 - The AI card shows the plan and the current step while the agent works. Once the answer is in, they fold into **How this answer was made**, with each tool's input and result.

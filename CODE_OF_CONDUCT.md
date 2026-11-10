@@ -54,7 +54,7 @@ at an event.
 
 ## Reporting a concern
 
-**Private reporting email: [uditmerit@gmail.com](mailto:uditmerit@gmail.com)**
+**Private reporting email: [info@kgptalkie.com](mailto:info@kgptalkie.com)**
 
 Send conduct concerns privately to the address above. Include, where possible:
 

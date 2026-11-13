@@ -93,7 +93,7 @@ To make your own notebook, run **SQL Notebook Studio: New SQL Notebook**, or rig
 | Key | What it does |
 | --- | --- |
 | **Ctrl+Enter** (Cmd+Enter on Mac) | Run the cell. The view stays where it is. |
-| **Shift+Enter** | Run the cell and select the next one. The cell you ran moves to one third down the window (setting `sqlNotebook.shiftEnterScroll`: `top`, `topThird`, `middle`, `whenNeeded` or `off`). |
+| **Shift+Enter** | Run the cell; it stays selected and moves to one third down the window (setting `sqlNotebook.shiftEnterScroll`: `top`, `topThird`, `middle`, `whenNeeded` or `off`). |
 | **A** / **B** | Add a code cell above / below (when no cell is being edited). |
 
 ## Features

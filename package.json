@@ -14,7 +14,7 @@
     "url": "https://github.com/laxmimerit/sql-notebook-studio/issues"
   },
   "homepage": "https://github.com/laxmimerit/sql-notebook-studio#readme",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "kgptalkie",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
@@ -301,7 +301,7 @@
       },
       {
         "command": "sqlNotebook.runAndSelectBelow",
-        "title": "Run Cell and Select Below",
+        "title": "Run Cell and Move It Up",
         "category": "SQL Notebook Studio",
         "enablement": "notebookType == 'sqlnb'"
       }
@@ -706,7 +706,7 @@
           ],
           "default": "topThird",
           "order": 21,
-          "markdownDescription": "Where `Shift+Enter` puts the cell you ran (the next cell gets selected). `Ctrl+Enter` runs a cell without moving it."
+          "markdownDescription": "Where `Shift+Enter` puts the cell you ran (it stays selected). `Ctrl+Enter` runs a cell without moving it."
         }
       }
     },

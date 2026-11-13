@@ -1,5 +1,5 @@
-// Shift+Enter: run the cell, select the next one, and once the result is
-// drawn put the cell that was run one third of the way down the window. Its
+// Shift+Enter: run the cell, keep it selected, and once the result is drawn
+// put it one third of the way down the window. Its
 // result shows below it, and the top third keeps the end of the cell before
 // it on screen (useful for recordings).
 //
@@ -55,7 +55,8 @@ export function registerShiftEnter(messaging: vscode.NotebookRendererMessaging):
     const cell = ed && ed.notebook.notebookType === NOTEBOOK_TYPE ? ed.notebook.cellAt(ed.selection.start) : undefined;
     const before = cell?.executionSummary?.timing?.endTime;
 
-    await vscode.commands.executeCommand('notebook.cell.executeAndSelectBelow');
+    // The cell that was run stays selected.
+    await vscode.commands.executeCommand('notebook.cell.executeAndFocusContainer');
     if (!ed || !cell || cell.kind !== vscode.NotebookCellKind.Code || mode === 'off') return;
 
     current.cancelled = true;

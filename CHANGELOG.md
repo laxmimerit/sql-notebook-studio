@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0
 
 - **Shift+Enter** runs the cell, selects the next one and, once the result is drawn, puts the cell you ran one third of the way down the window, so the top third still shows the end of the cell above. New setting `sqlNotebook.shiftEnterScroll`: `top` (the cell you ran at the top), `topThird` (the default), `middle` (halfway down), `whenNeeded` (scroll only when the next cell would be hidden near the bottom) or `off`.
 - **Ctrl+Enter** (Cmd+Enter on Mac) runs the cell where it is, without scrolling, as in Jupyter.

@@ -368,6 +368,42 @@ check that the address is `http://localhost:11434` and that the model is pulled
 Run **SQL Notebook Studio: Configure AI** and enter the key again. Keys are
 kept in VS Code's secret storage, never in settings files.
 
+## Scrolling and keys
+
+**A result is hidden under the next cell.**
+Fixed in the version after 1.1.1. VS Code could keep the height of a result's
+first draw ("running") when the final result replaced it quickly, so the next
+cell covered the rest. Update the extension; the result now grows to its full
+height a moment after it is drawn.
+
+**The notebook scrolls into blank space below the last cell.**
+That is VS Code's own behavior: with `editor.scrollBeyondLastLine` on (the
+default), a notebook scrolls until only a thin strip of it is left on screen.
+Extensions can't stop a scroll, only undo it afterwards, which makes the view
+bounce, so the extension leaves this alone. To stop at the end instead, turn
+`editor.scrollBeyondLastLine` off; note that it changes every editor, and the
+last cell then stops at the bottom of the window, not the top.
+
+**Shift+Enter moves the view; I want it to stay put.**
+Use **Ctrl+Enter** to run a cell without moving, or set
+`sqlNotebook.shiftEnterScroll` to `off`. The other values put the cell you ran
+at an exact place, with its result below it: `top` at the top of the window,
+`topThird` (the default) one third down, `middle` halfway down. The space above
+keeps the end of the cell before it on screen. `whenNeeded` keeps the view still while
+the next cell is on screen and scrolls only when it would be hidden near the
+bottom, just enough to show it.
+
+**Ctrl+Enter adds a new line or a new cell instead of running the cell.**
+That is VS Code's own Ctrl+Enter in a notebook: "insert line below" while you
+type in a cell, "insert code cell below" when a cell is selected. From the
+version after 1.1.1, Ctrl+Enter runs the cell in SQL notebooks. On an older
+version, run the cell with the ▷ button or Shift+Enter. After installing a new
+version, run **Developer: Reload Window** so the new keys load.
+
+**Shift+Enter, A or B do something else.**
+Another keymap extension (for example Jupyter Keymap) may bind the same keys.
+In a SQL notebook ours win. In other notebooks they are not used.
+
 ## Reporting a bug
 
 [Open an issue](https://github.com/laxmimerit/sql-notebook-studio/issues/new/choose)

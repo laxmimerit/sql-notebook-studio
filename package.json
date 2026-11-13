@@ -298,6 +298,12 @@
         "command": "sqlNotebook.openWalkthrough",
         "title": "Get Started",
         "category": "SQL Notebook Studio"
+      },
+      {
+        "command": "sqlNotebook.runAndSelectBelow",
+        "title": "Run Cell and Select Below",
+        "category": "SQL Notebook Studio",
+        "enablement": "notebookType == 'sqlnb'"
       }
     ],
     "submenus": [
@@ -681,6 +687,26 @@
           "minimum": 1,
           "order": 20,
           "description": "Most rows per result written to exported HTML, PDF and Markdown."
+        },
+        "sqlNotebook.shiftEnterScroll": {
+          "type": "string",
+          "enum": [
+            "top",
+            "topThird",
+            "middle",
+            "whenNeeded",
+            "off"
+          ],
+          "enumDescriptions": [
+            "After the result is drawn, the cell you ran sits at the top of the window, with its result below it.",
+            "After the result is drawn, the cell you ran sits one third of the way down the window. The top third keeps the end of the cell above on screen.",
+            "After the result is drawn, the cell you ran sits halfway down the window. The top half keeps the end of the cell above on screen.",
+            "The view stays still while the next cell is on screen. It scrolls only when the next cell would be hidden near the bottom, just enough to show it with a quarter of the window below it free. The cell you ran keeps its top on screen.",
+            "Leave scrolling to VS Code."
+          ],
+          "default": "topThird",
+          "order": 21,
+          "markdownDescription": "Where `Shift+Enter` puts the cell you ran (the next cell gets selected). `Ctrl+Enter` runs a cell without moving it."
         }
       }
     },
@@ -747,6 +773,29 @@
         "language": "sqlnb-file",
         "scopeName": "source.sqlnb-file",
         "path": "./syntaxes/sqlnb-file.tmLanguage.json"
+      }
+    ],
+    "keybindings": [
+      {
+        "key": "shift+enter",
+        "command": "sqlNotebook.runAndSelectBelow",
+        "when": "notebookType == 'sqlnb' && !interactiveEditorFocused && (editorTextFocus && inputFocus && notebookEditorFocused || notebookCellListFocused && !notebookOutputInputFocused)"
+      },
+      {
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "command": "notebook.cell.executeAndFocusContainer",
+        "when": "notebookType == 'sqlnb' && (editorTextFocus && inputFocus && notebookEditorFocused || notebookCellListFocused && !notebookOutputInputFocused)"
+      },
+      {
+        "key": "a",
+        "command": "notebook.cell.insertCodeCellAboveAndFocusContainer",
+        "when": "notebookType == 'sqlnb' && notebookEditorFocused && !inputFocus && !notebookOutputInputFocused"
+      },
+      {
+        "key": "b",
+        "command": "notebook.cell.insertCodeCellBelowAndFocusContainer",
+        "when": "notebookType == 'sqlnb' && notebookEditorFocused && !inputFocus && !notebookOutputInputFocused"
       }
     ]
   },

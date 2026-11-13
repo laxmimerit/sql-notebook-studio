@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Shift+Enter** runs the cell, selects the next one and, once the result is drawn, puts the cell you ran one third of the way down the window, so the top third still shows the end of the cell above. New setting `sqlNotebook.shiftEnterScroll`: `top` (the cell you ran at the top), `topThird` (the default), `middle` (halfway down), `whenNeeded` (scroll only when the next cell would be hidden near the bottom) or `off`.
+- **Ctrl+Enter** (Cmd+Enter on Mac) runs the cell where it is, without scrolling, as in Jupyter.
+- **A** and **B** add a code cell above or below the selected cell (when no cell is being edited), as in Jupyter.
+- A result no longer slides under the next cell. When a result was replaced quickly (running, then done), VS Code could keep the first, smaller height.
+
 ## 1.1.1
 
 - Every cell's toolbar has an **Add AI Prompt Below** button (chat sparkle icon). VS Code keeps the "+ Code / + Markdown" row between cells to itself, so this is how to add a prompt right under a cell.

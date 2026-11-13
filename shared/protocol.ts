@@ -114,6 +114,21 @@ export type RendererMessage =
   | { type: 'configureAi' }
   | { type: 'openSetting'; key: string };
 
+// Messages the extension sends to the renderer.
+export type HostMessage =
+  /** Does nothing; tells the extension whether the renderer is loaded. */
+  | { type: 'ping' }
+  /**
+   * Shift+Enter ran the cell showing `outputId`: once its result is drawn, put
+   * that cell `ratio` of the window from the top. With `fit`, instead scroll
+   * only when the next cell would end up in the bottom `ratio` of the window,
+   * and then just enough to bring it above that line. `nextOutputId` is the
+   * next cell's own result, if it has one, which gives that cell's exact position.
+   */
+  | { type: 'placeAfterRun'; outputId: string; nextOutputId?: string; ratio: number; fit?: boolean }
+  /** The cell that was run was just put at the top of the window: move it down to `ratio`. */
+  | { type: 'lowerTop'; ratio: number };
+
 /** AI suggestions that change the schema (like CREATE INDEX) go in a new cell instead of replacing the query. */
 export function isSchemaChange(sql: string): boolean {
   return /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(create|alter|drop|analyze|vacuum|reindex)\b/i.test(sql);

@@ -9,6 +9,7 @@ import { ConnectionsTree, describeSql, selectTopSql, quoteIdent, type Node } fro
 import { SqlCompletion } from './schema/completion';
 import { AutoUppercase, toggleUppercase } from './notebook/autoUppercase';
 import { Kernels, findOutput } from './notebook/kernels';
+import { registerShiftEnter } from './notebook/shiftEnter';
 import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE, SQL_LANGUAGE } from './notebook/serializer';
 import { AiService } from './ai/service';
 import { openConnectionForm, duplicateConnection, type FormDeps } from './connections/formPanel';
@@ -290,6 +291,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   // ---------- Messages from the results renderer ----------
 
   const messaging = vscode.notebooks.createRendererMessaging('sqlnb.renderer');
+  ctx.subscriptions.push(registerShiftEnter(messaging));
   ctx.subscriptions.push(
     messaging.onDidReceiveMessage(async ({ message }) => {
       const m = message as RendererMessage;

@@ -401,8 +401,10 @@
 .sqlnb .qs-chip.pending { opacity: 0.6; }
 .sqlnb .qs-chip-err, .sqlnb .qs-step-error .codicon { color: var(--vscode-errorForeground, #f14c4c); }
 .sqlnb .ro-chip.step.qs-chip:not(.on):not(.pending) { color: var(--vscode-foreground); }
-.sqlnb .qs-sql { flex: 1 1 280px; max-width: 520px; }
-.sqlnb .qs-detail { flex: 3 1 420px; min-width: 0; }
+.sqlnb .qs-sql { flex: 0 1 auto; min-width: min(260px, 100%); max-width: 520px; }
+/* The step card is as wide as what it shows (text, table), not the whole row. */
+.sqlnb .qs-detail { flex: 1 1 360px; min-width: min(380px, 100%); max-width: max-content; }
+.sqlnb .qs-detail .ro-explain-detail, .sqlnb .qs-detail .qs-title, .sqlnb .qs-stepsql pre { max-width: 72ch; }
 .sqlnb .qs-tags { display: inline-flex; align-items: center; gap: 6px; }
 .sqlnb .qs-final {
   display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 600;

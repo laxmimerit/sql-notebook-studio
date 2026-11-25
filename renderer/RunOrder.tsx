@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PlanPayload, PlanStep, StepKind } from '../shared/protocol';
 import { send } from './util';
+import { markOpen } from './openPanels';
 
 const KIND_LABEL: Record<StepKind, string> = {
   scan: 'read',
@@ -49,6 +50,7 @@ export function RunOrderView({ payload, outputId }: { payload: PlanPayload; outp
   const steps = payload.steps;
   const [cur, setCur] = useState(steps.length ? 1 : 0);
   const [playing, setPlaying] = useState(false);
+  useEffect(() => markOpen(outputId, payload.resultId, 'flow', payload.sql), [outputId, payload.resultId, payload.sql]);
 
   useEffect(() => {
     if (!playing) return;

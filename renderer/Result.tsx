@@ -3,6 +3,7 @@ import { PLAN_DRIVERS, isSelect, type Cell, type ChartConfig, type Column, type 
 import { Grid, type GridState } from './Grid';
 import { ChartView, autoChart } from './ChartView';
 import { copyText, fmtMs, full, plural, send, toDelimited, toJson, toMarkdown } from './util';
+import { useOpen } from './openPanels';
 
 export function ResultView({ payload, outputId }: { payload: ResultPayload; outputId: string }) {
   const { results, running, error } = payload;
@@ -154,6 +155,8 @@ function RowsView({ result, payload, outputId, index }: { result: StatementResul
     persist('chart', c);
   };
 
+  const flowOpen = useOpen(outputId, 'flow', result.sql);
+  const stepsOpen = useOpen(outputId, 'steps', result.sql);
   const visibleRows = () => order.map((i) => result.rows[i]);
   const filtered = order.length !== result.rows.length;
   const height = tall ? 720 : 360;
@@ -184,8 +187,9 @@ function RowsView({ result, payload, outputId, index }: { result: StatementResul
         </div>
         {PLAN_DRIVERS.has(payload.driver) && (
           <button
-            className="tb flow-btn"
-            title="Query Flow: the order the database runs this query in (asks the planner; the query does not run again)"
+            className={`tb flow-btn${flowOpen ? ' on' : ''}`}
+            aria-pressed={flowOpen}
+            title={flowOpen ? 'Close Query Flow' : 'Query Flow: the order the database runs this query in (asks the planner; the query does not run again)'}
             onClick={() => send({ type: 'queryFlow', outputId, resultIndex: index })}
           >
             <i className="codicon codicon-type-hierarchy-sub" />
@@ -194,8 +198,9 @@ function RowsView({ result, payload, outputId, index }: { result: StatementResul
         )}
         {isSelect(result.sql) && (
           <button
-            className="tb flow-btn steps-btn"
-            title="Query Steps: the rows after each clause (FROM, JOIN, WHERE, GROUP BY, ...), with the rows each one removed"
+            className={`tb flow-btn steps-btn${stepsOpen ? ' on' : ''}`}
+            aria-pressed={stepsOpen}
+            title={stepsOpen ? 'Close Query Steps' : 'Query Steps: the rows after each clause (FROM, JOIN, WHERE, GROUP BY, ...), with the rows each one removed'}
             onClick={() => send({ type: 'querySteps', outputId, resultIndex: index })}
           >
             <i className="codicon codicon-list-ordered" />

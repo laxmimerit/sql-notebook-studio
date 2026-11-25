@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { DRIVERS, type ConnectionConfig, type Session } from '../db/types';
 import { splitStatements } from '../db/splitter';
 import { useIn, type Where } from '../schema/where';
-import { findOutput, outputId, type Kernels } from '../notebook/kernels';
+import { findOutput, outputId, setOutputs, type Kernels } from '../notebook/kernels';
 import { SQL_LANGUAGE, isSqlLanguage } from '../notebook/serializer';
 import type { SchemaCache } from '../schema/cache';
 import { AI_MIME, RESULT_MIME, isSchemaChange, type AiKind, type AiPayload, type ResultPayload } from '../../shared/protocol';
@@ -160,7 +160,7 @@ export class AiService {
       const setup = async (x: vscode.NotebookCellExecution) => {
         const keep = kind === 'generate' ? [] : cell.outputs.filter((o) => !o.items.some((i) => i.mime === AI_MIME));
         const payload: AiPayload = { v: 1, id: outputId(), kind, status: 'error', markdown: 'AI is not set up yet. Choose a provider: OpenAI, Anthropic, OpenRouter, Ollama or your own API.', model: '' };
-        await x.replaceOutput([...keep, new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.json(payload, AI_MIME)], { sqlnbId: payload.id })]);
+        await setOutputs(x, cell, [...keep, new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.json(payload, AI_MIME)], { sqlnbId: payload.id })]);
         return undefined;
       };
       return exec ? setup(exec) : this.kernels.withExecution(nb, cell, setup);
@@ -169,7 +169,7 @@ export class AiService {
       const keep = kind === 'generate' ? [] : cell.outputs.filter((o) => !o.items.some((i) => i.mime === AI_MIME));
       const payload: AiPayload = { v: 1, id: outputId(), kind, status: 'streaming', markdown: '', model: `${cfg.provider} · ${cfg.model}` };
       const out = new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.json(payload, AI_MIME)], { sqlnbId: payload.id });
-      await x.replaceOutput([...keep, out]);
+      await setOutputs(x, cell, [...keep, out]);
       const abort = new AbortController();
       const sub = x.token.onCancellationRequested(() => abort.abort());
       let last = 0;
@@ -327,7 +327,9 @@ export class AiService {
     await vscode.workspace.applyEdit(edit);
     // The AI card and any error it fixed no longer match the cell.
     await this.kernels.withExecution(f.nb, f.cell, async (exec) => {
-      await exec.replaceOutput(
+      await setOutputs(
+        exec,
+        f.cell,
         f.cell.outputs.filter((o) => {
           if (o.metadata?.sqlnbId === outputId) return false;
           const item = o.items.find((i) => i.mime === RESULT_MIME);
@@ -341,7 +343,7 @@ export class AiService {
     const f = this.find(outputId);
     if (!f) return;
     await this.kernels.withExecution(f.nb, f.cell, async (exec) => {
-      await exec.replaceOutput(f.cell.outputs.filter((o) => o.metadata?.sqlnbId !== outputId));
+      await setOutputs(exec, f.cell, f.cell.outputs.filter((o) => o.metadata?.sqlnbId !== outputId));
     });
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { QueryStep, QueryStepKind, StepRows, StepsPayload } from '../shared/protocol';
 import { fmtLines } from './RunOrder';
 import { display, full, send } from './util';
+import { markOpen } from './openPanels';
 
 /** Step colours, shared with Query Flow (k-* classes in styles.css). */
 const KIND_CLASS: Record<QueryStepKind, string> = {
@@ -39,6 +40,7 @@ export function QueryStepsView({ payload, outputId }: { payload: StepsPayload; o
   const steps = payload.steps;
   const [cur, setCur] = useState(steps.length ? 1 : 0);
   const [showRemoved, setShowRemoved] = useState(false);
+  useEffect(() => markOpen(outputId, payload.resultId, 'steps', payload.sql), [outputId, payload.resultId, payload.sql]);
 
   // Start at step 1 (it shows a spinner until it has run); keep the selection valid as steps arrive.
   useEffect(() => {

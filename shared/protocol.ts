@@ -137,6 +137,8 @@ export interface PlanPayload {
   steps: PlanStep[];
   /** Clause keywords in the order they are written (SELECT, FROM, ...). */
   written: string[];
+  /** The result output of the cell when this was opened: its Query Flow button shows it is open. */
+  resultId?: string;
   note?: string;
   error?: string;
 }
@@ -196,6 +198,8 @@ export interface StepsPayload {
   sampleRows: number;
   /** True while steps are still running. */
   running?: boolean;
+  /** The result output of the cell when this was opened: its Query Steps button shows it is open. */
+  resultId?: string;
   note?: string;
   error?: string;
 }
@@ -234,6 +238,12 @@ export type HostMessage =
 /** A SELECT (or WITH ... SELECT): the statements Query Steps can step through. */
 export function isSelect(sql: string): boolean {
   return /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(select|with)\b/i.test(sql);
+}
+
+/** The same statement, ignoring surrounding space and a final semicolon. */
+export function sameStatement(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/\r\n?/g, '\n').trim().replace(/;\s*$/, '').trim();
+  return norm(a) === norm(b);
 }
 
 /** AI suggestions that change the schema (like CREATE INDEX) go in a new cell instead of replacing the query. */

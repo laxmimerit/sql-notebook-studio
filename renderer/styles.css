@@ -385,6 +385,8 @@
 /* The Query Flow button in a result's toolbar */
 .sqlnb .tb.flow-btn { width: auto; gap: 5px; padding: 0 9px; border: 1px solid var(--b); color: var(--vscode-foreground); }
 .sqlnb .tb.flow-btn .codicon { color: var(--vscode-charts-blue, var(--vscode-focusBorder)); }
+/* Pressed while its card is open: a second click closes the card. */
+.sqlnb .tb.flow-btn.on { background: var(--vscode-inputOption-activeBackground, var(--hover)); border-color: var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder)); color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground)); }
 @media (prefers-reduced-motion: reduce) { .sqlnb .ro-edge path, .sqlnb .ro-node > rect, .sqlnb .ro-progress button { transition: none; } }
 
 /* Query Steps: the rows after each clause, from running the query up to it */

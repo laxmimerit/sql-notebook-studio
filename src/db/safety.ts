@@ -6,6 +6,8 @@ import type { DriverId } from './types';
 
 const WRITE = /^(INSERT|UPDATE|DELETE|MERGE|UPSERT|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE|COMMENT|VACUUM|REINDEX|CLUSTER|COPY|LOAD|IMPORT|ATTACH|DETACH|CALL|EXEC|EXECUTE|DO|SET\s+PASSWORD|LOCK|OPTIMIZE|REPAIR|INSTALL|UNINSTALL)\b/i;
 
+const ROUTINE = /^\s*(?:CREATE|ALTER)\s+(?:OR\s+(?:REPLACE|ALTER)\s+)?(?:DEFINER\s*=\s*\S+\s+)?(?:TEMP(?:ORARY)?\s+)?(?:PROCEDURE|PROC|FUNCTION|TRIGGER|EVENT)\b/i;
+
 export interface Classification {
   write: boolean;
   /** A short reason when the statement is risky, else undefined. */
@@ -22,6 +24,8 @@ export interface Classification {
  */
 export function classify(sql: string, dialect?: DriverId): Classification {
   const mask = maskNested(sql, dialect);
+  // Defining a procedure, function or trigger runs none of its body.
+  if (ROUTINE.test(mask)) return classifyOne(sql, mask, dialect);
   let write = false;
   let risk: string | undefined;
   // Statements a cell or batch keeps together (a SQL Server batch, for one).

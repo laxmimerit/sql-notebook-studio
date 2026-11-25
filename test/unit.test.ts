@@ -158,6 +158,11 @@ describe('safety', () => {
     expect(classify("SELECT ';' AS x; SELECT 1").write).toBe(false);
   });
 
+  it('does not look inside a routine body being defined', () => {
+    expect(classify('CREATE PROCEDURE purge AS BEGIN SELECT 1; DELETE FROM logs; END', 'mssql')).toEqual({ write: true, risk: undefined });
+    expect(classify('CREATE TRIGGER trg AFTER INSERT ON t FOR EACH ROW BEGIN UPDATE stats SET n = n + 1; END', 'mysql')).toEqual({ write: true, risk: undefined });
+  });
+
   it('keeps SELECT INTO a write', () => {
     expect(classify('SELECT * INTO backup FROM t').write).toBe(true);
     expect(classify('SELECT * INTO "backup" FROM t').write).toBe(true);

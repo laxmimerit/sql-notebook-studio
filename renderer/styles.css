@@ -386,3 +386,82 @@
 .sqlnb .tb.flow-btn { width: auto; gap: 5px; padding: 0 9px; border: 1px solid var(--b); color: var(--vscode-foreground); }
 .sqlnb .tb.flow-btn .codicon { color: var(--vscode-charts-blue, var(--vscode-focusBorder)); }
 @media (prefers-reduced-motion: reduce) { .sqlnb .ro-edge path, .sqlnb .ro-node > rect, .sqlnb .ro-progress button { transition: none; } }
+
+/* Query Steps: the rows after each clause, from running the query up to it */
+.sqlnb.qs { --ro-c: var(--vscode-charts-green, #89d185); }
+.sqlnb.qs .ro-head > .codicon-list-ordered { color: var(--ro-c); font-size: 15px; }
+.sqlnb .qs-progress { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; }
+.sqlnb .qs-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+.sqlnb .qs-strip-item { display: inline-flex; align-items: center; gap: 4px; }
+.sqlnb .qs-arrow { font-size: 11px; color: var(--muted); }
+.sqlnb .qs-chip { gap: 6px; }
+.sqlnb .qs-chip-clause { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.sqlnb .qs-chip-count { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.sqlnb .qs-chip.on .qs-chip-count { color: var(--vscode-foreground); }
+.sqlnb .qs-chip.pending { opacity: 0.6; }
+.sqlnb .qs-chip-err, .sqlnb .qs-step-error .codicon { color: var(--vscode-errorForeground, #f14c4c); }
+.sqlnb .ro-chip.step.qs-chip:not(.on):not(.pending) { color: var(--vscode-foreground); }
+.sqlnb .qs-sql { flex: 1 1 280px; max-width: 520px; }
+.sqlnb .qs-detail { flex: 3 1 420px; min-width: 0; }
+.sqlnb .qs-tags { display: inline-flex; align-items: center; gap: 6px; }
+.sqlnb .qs-final {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 600;
+  color: var(--vscode-charts-green, #89d185); border: 1px solid color-mix(in srgb, var(--vscode-charts-green, #89d185) 60%, transparent);
+}
+.sqlnb .qs-final .codicon { font-size: 12px; }
+.sqlnb .qs-title { font-family: var(--mono); font-size: 13px; font-weight: 600; white-space: pre-wrap; word-break: break-word; }
+.sqlnb .qs-change { display: flex; align-items: center; gap: 7px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sqlnb .qs-minus, .sqlnb .qs-plus { padding: 0 6px; border-radius: 8px; font-size: 11.5px; font-weight: 600; }
+.sqlnb .qs-minus { color: var(--vscode-errorForeground, #f14c4c); background: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 12%, transparent); }
+.sqlnb .qs-plus { color: var(--vscode-charts-blue, #3794ff); background: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 12%, transparent); }
+.sqlnb .qs-step-error { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; }
+.sqlnb .qs-step-error .codicon { margin-top: 2px; }
+.sqlnb .qs-table-wrap { border: 1px solid var(--b); border-radius: 6px; background: var(--vscode-editor-background); overflow: hidden; }
+.sqlnb .qs-table-wrap.removed { border-color: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 45%, var(--b)); }
+.sqlnb .qs-table-wrap.removed .qs-table td { background: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 6%, transparent); }
+.sqlnb .qs-table-scroll { max-height: 260px; overflow: auto; }
+.sqlnb .qs-table { border-collapse: collapse; font-family: var(--mono); font-size: var(--mono-size); width: max-content; min-width: 100%; }
+.sqlnb .qs-table th, .sqlnb .qs-table td { padding: 3px 10px; border-bottom: 1px solid var(--b); text-align: left; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.sqlnb .qs-table th { position: sticky; top: 0; z-index: 1; background: var(--vscode-editorWidget-background, var(--vscode-editor-background)); font-weight: 600; }
+.sqlnb .qs-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.sqlnb .qs-table td.null { color: var(--muted); font-style: italic; }
+.sqlnb .qs-table tbody tr:hover td { background: var(--hover); }
+.sqlnb .qs-table tbody tr:last-child td { border-bottom: none; }
+.sqlnb .qs-empty { text-align: center !important; font-family: var(--vscode-font-family); font-style: italic; }
+.sqlnb .qs-more { padding: 4px 10px; border-top: 1px solid var(--b); }
+.sqlnb .qs-removed { display: flex; flex-direction: column; gap: 6px; }
+.sqlnb .qs-toggle {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 2px 8px 2px 4px; border: 1px solid var(--b); border-radius: 11px;
+  background: transparent; color: var(--vscode-foreground); font-size: 12px; text-align: left; cursor: pointer;
+}
+.sqlnb .qs-toggle:hover { background: var(--hover); }
+.sqlnb .qs-removed-n { padding: 0 6px; border-radius: 8px; font-size: 11px; font-weight: 600; color: var(--vscode-errorForeground, #f14c4c); background: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 12%, transparent); }
+.sqlnb .qs-stepsql summary { cursor: pointer; font-size: 11.5px; color: var(--muted); }
+.sqlnb .qs-stepsql pre {
+  margin: 6px 0 0; padding: 8px 10px; border: 1px solid var(--b); border-radius: 6px; background: var(--vscode-editor-background);
+  font-family: var(--mono); font-size: var(--mono-size); white-space: pre-wrap; word-break: break-word;
+}
+.sqlnb .tb.steps-btn .codicon { color: var(--vscode-charts-green, #89d185); }
+.sqlnb .ro-chip.step.qs-chip { border-left-width: 1px; padding-left: 3px; }
+.sqlnb .qs-chip .ro-chip-n {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; border-radius: 8px;
+  font-size: 10px; background: color-mix(in srgb, var(--k) 30%, transparent); color: var(--vscode-foreground);
+}
+.sqlnb .qs-chip.on .ro-chip-n, .sqlnb .qs-chip.done .ro-chip-n { background: var(--k); color: var(--vscode-editor-background); }
+.sqlnb .qs-chip.error .ro-chip-n { background: var(--vscode-errorForeground, #f14c4c); color: var(--vscode-editor-background); }
+
+/* Query Steps fit: long SQL lines wrap instead of scrolling out of view; tables
+   take the width they need; the header and step labels wrap on narrow windows. */
+.sqlnb.qs .ro-code { overflow-x: hidden; }
+.sqlnb.qs .ro-line { align-items: flex-start; white-space: pre-wrap; padding-top: 2px; padding-bottom: 2px; min-height: 0; line-height: 18px; }
+.sqlnb.qs .ro-text { min-width: 0; overflow-wrap: anywhere; }
+.sqlnb.qs .ro-head { flex-wrap: wrap; row-gap: 2px; }
+.sqlnb.qs .ro-head > .muted.small:not(.qs-progress) { flex: 1 1 200px; min-width: 0; }
+.sqlnb.qs .ro-head > .spacer { display: none; }
+.sqlnb.qs .ro-explain-top { flex-wrap: wrap; }
+.sqlnb.qs .ro-explain-title { align-items: flex-start; }
+.sqlnb.qs .ro-explain-n { flex: none; }
+.sqlnb .qs-table-wrap { width: fit-content; min-width: min(260px, 100%); max-width: 100%; }
+.sqlnb .qs-table { min-width: 100%; }
+.sqlnb .qs-change { flex-wrap: wrap; }
+.sqlnb .qs-toggle { max-width: 100%; }

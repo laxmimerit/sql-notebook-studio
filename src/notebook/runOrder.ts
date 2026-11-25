@@ -76,7 +76,7 @@ export class RunOrder {
   }
 }
 
-function cursorOffset(cell: vscode.NotebookCell): number | undefined {
+export function cursorOffset(cell: vscode.NotebookCell): number | undefined {
   const ed = vscode.window.visibleTextEditors.find((e) => e.document === cell.document);
   if (!ed) return undefined;
   // Count from normalized text: the splitter drops \r.

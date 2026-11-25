@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PLAN_DRIVERS, type Cell, type ChartConfig, type Column, type ResultPayload, type StatementResult } from '../shared/protocol';
+import { PLAN_DRIVERS, isSelect, type Cell, type ChartConfig, type Column, type ResultPayload, type StatementResult } from '../shared/protocol';
 import { Grid, type GridState } from './Grid';
 import { ChartView, autoChart } from './ChartView';
 import { copyText, fmtMs, full, plural, send, toDelimited, toJson, toMarkdown } from './util';
@@ -190,6 +190,16 @@ function RowsView({ result, payload, outputId, index }: { result: StatementResul
           >
             <i className="codicon codicon-type-hierarchy-sub" />
             <span>Query Flow</span>
+          </button>
+        )}
+        {isSelect(result.sql) && (
+          <button
+            className="tb flow-btn steps-btn"
+            title="Query Steps: the rows after each clause (FROM, JOIN, WHERE, GROUP BY, ...), with the rows each one removed"
+            onClick={() => send({ type: 'querySteps', outputId, resultIndex: index })}
+          >
+            <i className="codicon codicon-list-ordered" />
+            <span>Query Steps</span>
           </button>
         )}
         {view === 'table' && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Cell, ChartConfig, Column, ResultPayload, StatementResult } from '../shared/protocol';
+import { PLAN_DRIVERS, type Cell, type ChartConfig, type Column, type ResultPayload, type StatementResult } from '../shared/protocol';
 import { Grid, type GridState } from './Grid';
 import { ChartView, autoChart } from './ChartView';
 import { copyText, fmtMs, full, plural, send, toDelimited, toJson, toMarkdown } from './util';
@@ -182,6 +182,16 @@ function RowsView({ result, payload, outputId, index }: { result: StatementResul
             <span>Chart</span>
           </button>
         </div>
+        {PLAN_DRIVERS.has(payload.driver) && (
+          <button
+            className="tb flow-btn"
+            title="Query Flow: the order the database runs this query in (asks the planner; the query does not run again)"
+            onClick={() => send({ type: 'queryFlow', outputId, resultIndex: index })}
+          >
+            <i className="codicon codicon-type-hierarchy-sub" />
+            <span>Query Flow</span>
+          </button>
+        )}
         {view === 'table' && (
           <>
             <div className="search">

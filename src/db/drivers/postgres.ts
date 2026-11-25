@@ -148,6 +148,12 @@ class PgSession implements Session {
     const r = await this.q<Record<string, string>>(`explain ${sql}`);
     return r.map((x) => x['QUERY PLAN']).join('\n');
   }
+
+  async planJson(sql: string): Promise<unknown> {
+    const r = await this.q<Record<string, unknown>>(`explain (format json) ${sql}`);
+    const plan = r[0]?.['QUERY PLAN'];
+    return typeof plan === 'string' ? JSON.parse(plan) : plan;
+  }
 }
 
 export async function open(conn: ResolvedConnection): Promise<Session> {

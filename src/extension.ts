@@ -12,6 +12,7 @@ import { Kernels, findOutput } from './notebook/kernels';
 import { registerShiftEnter } from './notebook/shiftEnter';
 import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE, SQL_LANGUAGE } from './notebook/serializer';
 import { AiService } from './ai/service';
+import { RunOrder } from './notebook/runOrder';
 import { openConnectionForm, duplicateConnection, type FormDeps } from './connections/formPanel';
 import { exportNotebook } from './export/exporter';
 import { splitStatements } from './db/splitter';
@@ -19,7 +20,7 @@ import { cellsFromSqlFile } from './notebook/format';
 import { findVariables } from './util/variables';
 import { DRIVERS, type ConnectionConfig } from './db/types';
 import { toCsv } from './ai/service';
-import type { RendererMessage } from '../shared/protocol';
+import { RESULT_MIME, type RendererMessage, type ResultPayload } from '../shared/protocol';
 
 /** Earlier IDs of this extension. A leftover copy registers the same commands and views. */
 const OLD_IDS = ['kgptalkie.sql-notebook'];
@@ -205,6 +206,8 @@ export function activate(ctx: vscode.ExtensionContext) {
   cmd('sqlNotebook.configureAI', () => ai.configure());
   cmd('sqlNotebook.explainCell', (cell?: vscode.NotebookCell) => ai.explainCell(cell));
   cmd('sqlNotebook.optimizeCell', (cell?: vscode.NotebookCell) => ai.optimizeCell(cell));
+  const runOrder = new RunOrder(kernels);
+  cmd('sqlNotebook.runOrder', (cell?: vscode.NotebookCell) => runOrder.show(cell));
   /** Adds an empty AI prompt cell at `index` and puts the cursor in it. */
   const insertAiCell = async (editor: vscode.NotebookEditor, index: number) => {
     const edit = new vscode.WorkspaceEdit();
@@ -337,6 +340,15 @@ export function activate(ctx: vscode.ExtensionContext) {
           case 'explainResult':
             await ai.explainResult(m.outputId, m.resultIndex);
             break;
+          case 'queryFlow': {
+            // Explain the statement this result came from, not the one under the cursor.
+            const f = findOutput(m.outputId);
+            if (!f) return;
+            const item = f.output.items.find((i) => i.mime === RESULT_MIME);
+            const sql = item ? (JSON.parse(Buffer.from(item.data).toString('utf8')) as ResultPayload).results[m.resultIndex]?.sql : undefined;
+            await runOrder.show(f.cell, sql);
+            break;
+          }
           case 'applySql':
             await ai.applySql(m.outputId, m.sql);
             break;

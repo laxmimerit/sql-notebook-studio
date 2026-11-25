@@ -125,6 +125,14 @@ class DuckSession implements Session {
     closeReader(r);
     return rows.map((row) => String(row[row.length - 1])).join('\n');
   }
+
+  async planJson(sql: string): Promise<unknown> {
+    const r = await this.conn.runAndReadAll(`explain (format json) ${sql}`);
+    const rows = r.getRowsJS() as unknown[][];
+    closeReader(r);
+    const last = rows[0]?.[rows[0].length - 1];
+    return typeof last === 'string' ? JSON.parse(last) : last;
+  }
 }
 
 function closeReader(r: { closeSync(): void } | undefined) {

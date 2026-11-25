@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import type { ResolvedConnection, Session, DriverId } from '../src/db/types';
 import type { StatementResult } from '../shared/protocol';
 import { splitStatements } from '../src/db/splitter';
+import { planSteps, PLAN_DRIVERS } from '../src/db/plan';
 
 const require = createRequire(import.meta.url);
 const dist = path.resolve(__dirname, '..', 'dist');
@@ -138,6 +139,13 @@ for (const c of cases) {
     it('explains a query', async () => {
       const plan = await s.explain(c.driver === 'mssql' ? 'select 1' : 'select * from t where id = 1');
       if (c.driver !== 'mssql') expect(plan && plan.length).toBeGreaterThan(0);
+    });
+    it.runIf(PLAN_DRIVERS.has(c.driver))('plans a query as run-order steps', async () => {
+      const sql = 'select id from t where id > 0 order by id desc limit 1';
+      const { steps } = planSteps(c.driver, await s.planJson!(sql), sql);
+      expect(steps[0]).toMatchObject({ kind: 'scan', title: 'Read t' });
+      // SQLite walks the primary key backwards (no sort); DuckDB folds it into Top N.
+      expect(steps.at(-1)!.title).toMatch(/^(keep first 1|top 1 by id desc)$/i);
     });
     it('can be stopped and keeps working', async () => {
       const t0 = Date.now();

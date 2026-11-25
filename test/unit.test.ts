@@ -116,6 +116,53 @@ describe('safety', () => {
     expect(classify('truncate table t').risk).toBe('TRUNCATE');
     expect(classify('with x as (select 1) delete from t').risk).toBe('DELETE without WHERE');
   });
+
+  it('counts only a WHERE of the statement itself', () => {
+    // A WHERE in a subquery, a string, a quoted name or a comment filters nothing.
+    expect(classify("UPDATE users SET plan_id = (SELECT id FROM plans WHERE name = 'free')").risk).toBe('UPDATE without WHERE');
+    expect(classify("UPDATE products SET note = 'see WHERE clause docs'").risk).toBe('UPDATE without WHERE');
+    expect(classify('UPDATE t SET "where" = 1').risk).toBe('UPDATE without WHERE');
+    expect(classify('UPDATE t SET [where] = 1', 'mssql').risk).toBe('UPDATE without WHERE');
+    expect(classify('DELETE FROM t -- WHERE id = 1').risk).toBe('DELETE without WHERE');
+    expect(classify('DELETE FROM t /* WHERE id = 1 */').risk).toBe('DELETE without WHERE');
+    expect(classify('DELETE FROM t # WHERE id = 1', 'mysql').risk).toBe('DELETE without WHERE');
+    expect(classify("UPDATE t SET a = 'it''s WHERE'").risk).toBe('UPDATE without WHERE');
+    expect(classify("UPDATE t SET a = 'it\\'s WHERE'", 'mysql').risk).toBe('UPDATE without WHERE');
+    expect(classify('UPDATE t SET a = $$ WHERE $$', 'postgres').risk).toBe('UPDATE without WHERE');
+  });
+
+  it('still accepts a real WHERE', () => {
+    expect(classify('DELETE FROM orders WHERE id IN (SELECT id FROM old_orders)').risk).toBeUndefined();
+    expect(classify("UPDATE users SET plan_id = (SELECT id FROM plans WHERE name = 'free') WHERE id = 7").risk).toBeUndefined();
+    expect(classify("UPDATE t SET a = '(' WHERE id = 1").risk).toBeUndefined();
+    expect(classify('UPDATE t SET a = 1\nWHERE id = 1').risk).toBeUndefined();
+    expect(classify('with x as (select id from t where a = 1) delete from t where id in (select id from x)').risk).toBeUndefined();
+  });
+
+  it('names the dropped object, past IF EXISTS', () => {
+    expect(classify('DROP TABLE IF EXISTS users').risk).toBe('DROP TABLE users');
+    expect(classify('drop view if exists v_sales;').risk).toBe('DROP VIEW v_sales');
+    expect(classify('DROP TABLE a, b').risk).toBe('DROP TABLE a');
+  });
+
+  it('sees writes inside a CTE', () => {
+    const c = classify('WITH gone AS (DELETE FROM orders RETURNING *) SELECT count(*) FROM gone', 'postgres');
+    expect(c).toEqual({ write: true, risk: 'DELETE without WHERE' });
+    expect(classify('WITH x AS MATERIALIZED (UPDATE t SET a = 1 WHERE id = 2 RETURNING *) SELECT * FROM x', 'postgres')).toEqual({ write: true, risk: undefined });
+    expect(classify('WITH x AS (SELECT 1) SELECT * FROM x')).toEqual({ write: false, risk: undefined });
+  });
+
+  it('checks each statement of a batch', () => {
+    // SQL Server runs a whole GO batch at once; a later WHERE must not cover an earlier DELETE.
+    expect(classify('DELETE FROM t; SELECT * FROM u WHERE id = 1', 'mssql').risk).toBe('DELETE without WHERE');
+    expect(classify("SELECT ';' AS x; SELECT 1").write).toBe(false);
+  });
+
+  it('keeps SELECT INTO a write', () => {
+    expect(classify('SELECT * INTO backup FROM t').write).toBe(true);
+    expect(classify('SELECT * INTO "backup" FROM t').write).toBe(true);
+    expect(classify('SELECT a FROM t WHERE b IN (SELECT c FROM u)').write).toBe(false);
+  });
 });
 
 describe('values', () => {

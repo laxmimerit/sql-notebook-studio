@@ -297,7 +297,7 @@ export class Kernels implements vscode.Disposable {
     const mode = cfg.get<string>('confirmDestructive', 'production');
     const risks: string[] = [];
     for (const s of statements) {
-      const c = classify(s.sql);
+      const c = classify(s.sql, conn.driver);
       if (conn.readOnly && c.write) {
         await exec.replaceOutput(errorOutput(`"${conn.name}" is read-only. This statement changes data:\n${s.sql.slice(0, 200)}`));
         return false;

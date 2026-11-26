@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Query Flow** shows the order the database runs a statement in, which is not the order it is written in. Open it from the **Query Flow** button in a result's toolbar (next to Table/Chart), the icon in a SQL cell's toolbar, or **Show Query Flow** in the Command Palette. It asks the database's planner (EXPLAIN; the query itself does not run again) and lays the steps out in three panes: your SQL with numbered badges on the lines each step comes from, a middle panel that explains the current step in plain words (what it reads, what it passes on, the planner's row estimate), and a graph of how the steps feed each other. A "You write / It runs" strip compares the two orders. Play steps through them one at a time, or use Prev/Next, the arrow keys, or click a line, node, chip or progress segment. Works with PostgreSQL, SQLite and DuckDB.
 - **Safer write checks.** "UPDATE/DELETE without WHERE" now looks only at the statement's own WHERE. Before, a WHERE inside a subquery, a string, a quoted name or a comment hid the warning, so `UPDATE users SET plan_id = (SELECT id FROM plans WHERE name = 'free')` changed every row with no confirmation on a Production connection.
 - A write inside a CTE (`WITH gone AS (DELETE FROM orders RETURNING *) SELECT ...`) now counts as a write: read-only connections refuse it, and a DELETE or UPDATE there without WHERE asks first.
 - Each statement of a SQL Server batch is checked on its own, when they are separated by `;`.

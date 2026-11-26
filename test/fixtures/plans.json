@@ -1,0 +1,504 @@
+{
+ "sqlite": {
+  "demo": [
+   {
+    "id": 10,
+    "parent": 0,
+    "detail": "SEARCH o USING INDEX oc (created_at>?)"
+   },
+   {
+    "id": 14,
+    "parent": 0,
+    "detail": "SEARCH c USING INTEGER PRIMARY KEY (rowid=?)"
+   },
+   {
+    "id": 17,
+    "parent": 0,
+    "detail": "USE TEMP B-TREE FOR GROUP BY"
+   },
+   {
+    "id": 57,
+    "parent": 0,
+    "detail": "USE TEMP B-TREE FOR ORDER BY"
+   }
+  ],
+  "filter": [
+   {
+    "id": 3,
+    "parent": 0,
+    "detail": "SCAN customers"
+   },
+   {
+    "id": 12,
+    "parent": 0,
+    "detail": "USE TEMP B-TREE FOR ORDER BY"
+   }
+  ],
+  "count": [
+   {
+    "id": 3,
+    "parent": 0,
+    "detail": "SCAN orders"
+   }
+  ],
+  "cte": [
+   {
+    "id": 2,
+    "parent": 0,
+    "detail": "CO-ROUTINE big"
+   },
+   {
+    "id": 8,
+    "parent": 2,
+    "detail": "SCAN orders"
+   },
+   {
+    "id": 10,
+    "parent": 2,
+    "detail": "USE TEMP B-TREE FOR GROUP BY"
+   },
+   {
+    "id": 52,
+    "parent": 0,
+    "detail": "SCAN b"
+   },
+   {
+    "id": 57,
+    "parent": 0,
+    "detail": "SEARCH c USING INTEGER PRIMARY KEY (rowid=?)"
+   },
+   {
+    "id": 65,
+    "parent": 0,
+    "detail": "USE TEMP B-TREE FOR ORDER BY"
+   }
+  ],
+  "union": [
+   {
+    "id": 1,
+    "parent": 0,
+    "detail": "COMPOUND QUERY"
+   },
+   {
+    "id": 2,
+    "parent": 1,
+    "detail": "LEFT-MOST SUBQUERY"
+   },
+   {
+    "id": 4,
+    "parent": 2,
+    "detail": "SEARCH customers USING INTEGER PRIMARY KEY (rowid=?)"
+   },
+   {
+    "id": 8,
+    "parent": 2,
+    "detail": "LIST SUBQUERY 1"
+   },
+   {
+    "id": 10,
+    "parent": 8,
+    "detail": "SCAN orders"
+   },
+   {
+    "id": 29,
+    "parent": 1,
+    "detail": "UNION ALL"
+   },
+   {
+    "id": 31,
+    "parent": 29,
+    "detail": "SCAN customers"
+   }
+  ],
+  "del": [
+   {
+    "id": 4,
+    "parent": 0,
+    "detail": "SEARCH orders USING INDEX oc (created_at<?)"
+   }
+  ]
+ },
+ "duckdb": {
+  "demo": [
+   {
+    "name": "TOP_N",
+    "children": [
+     {
+      "name": "PROJECTION",
+      "children": [
+       {
+        "name": "HASH_GROUP_BY",
+        "children": [
+         {
+          "name": "PROJECTION",
+          "children": [
+           {
+            "name": "PROJECTION",
+            "children": [
+             {
+              "name": "HASH_JOIN",
+              "children": [
+               {
+                "name": "SEQ_SCAN",
+                "children": [],
+                "extra_info": {
+                 "Table": "memory.main.orders",
+                 "Type": "Sequential Scan",
+                 "Projections": "customer_id",
+                 "Filters": "(created_at > '2025-12-01'::DATE)",
+                 "Estimated Cardinality": "240000"
+                }
+               },
+               {
+                "name": "SEQ_SCAN",
+                "children": [],
+                "extra_info": {
+                 "Table": "memory.main.customers",
+                 "Type": "Sequential Scan",
+                 "Projections": [
+                  "id",
+                  "name"
+                 ],
+                 "Estimated Cardinality": "50000"
+                }
+               }
+              ],
+              "extra_info": {
+               "Join Type": "INNER",
+               "Conditions": "customer_id = id",
+               "Estimated Cardinality": "240000"
+              }
+             }
+            ],
+            "extra_info": {
+             "Projections": [
+              "#0",
+              "__internal_compress_string_ubigint(#1)"
+             ],
+             "Estimated Cardinality": "240000"
+            }
+           }
+          ],
+          "extra_info": {
+           "Projections": "name",
+           "Estimated Cardinality": "240000"
+          }
+         }
+        ],
+        "extra_info": {
+         "Groups": "#0",
+         "Aggregates": "count_star()",
+         "Estimated Cardinality": "33166"
+        }
+       }
+      ],
+      "extra_info": {
+       "Projections": [
+        "__internal_decompress_string(#0)",
+        "#1"
+       ],
+       "Estimated Cardinality": "33166"
+      }
+     }
+    ],
+    "extra_info": {
+     "Top": "10",
+     "Order By": "orders DESC",
+     "Estimated Cardinality": "10"
+    }
+   }
+  ],
+  "filter": [
+   {
+    "name": "PROJECTION",
+    "children": [
+     {
+      "name": "ORDER_BY",
+      "children": [
+       {
+        "name": "PROJECTION",
+        "children": [
+         {
+          "name": "PROJECTION",
+          "children": [
+           {
+            "name": "SEQ_SCAN",
+            "children": [],
+            "extra_info": {
+             "Table": "memory.main.customers",
+             "Type": "Sequential Scan",
+             "Projections": [
+              "city",
+              "name"
+             ],
+             "Filters": "(city = 'Pune')",
+             "Estimated Cardinality": "10000"
+            }
+           }
+          ],
+          "extra_info": {
+           "Projections": [
+            "name",
+            "city"
+           ],
+           "Estimated Cardinality": "10000"
+          }
+         }
+        ],
+        "extra_info": {
+         "Projections": [
+          "__internal_compress_string_ubigint(#0)",
+          "__internal_compress_string_ubigint(#1)"
+         ],
+         "Estimated Cardinality": "10000"
+        }
+       }
+      ],
+      "extra_info": {
+       "Order By": "name ASC",
+       "Estimated Cardinality": "10000"
+      }
+     }
+    ],
+    "extra_info": {
+     "Projections": [
+      "__internal_decompress_string(#0)",
+      "__internal_decompress_string(#1)"
+     ],
+     "Estimated Cardinality": "10000"
+    }
+   }
+  ],
+  "count": [
+   {
+    "name": "UNGROUPED_AGGREGATE",
+    "children": [
+     {
+      "name": "SEQ_SCAN",
+      "children": [],
+      "extra_info": {
+       "Table": "memory.main.orders",
+       "Type": "Sequential Scan",
+       "Projections": "",
+       "Filters": "(amount > 5.00)",
+       "Estimated Cardinality": "240000"
+      }
+     }
+    ],
+    "extra_info": {
+     "Aggregates": "count_star()",
+     "Estimated Cardinality": "1"
+    }
+   }
+  ],
+  "cte": [
+   {
+    "name": "PROJECTION",
+    "children": [
+     {
+      "name": "ORDER_BY",
+      "children": [
+       {
+        "name": "PROJECTION",
+        "children": [
+         {
+          "name": "HASH_JOIN",
+          "children": [
+           {
+            "name": "SEQ_SCAN",
+            "children": [],
+            "extra_info": {
+             "Table": "memory.main.customers",
+             "Type": "Sequential Scan",
+             "Projections": [
+              "id",
+              "name"
+             ],
+             "Estimated Cardinality": "50000"
+            }
+           },
+           {
+            "name": "FILTER",
+            "children": [
+             {
+              "name": "PROJECTION",
+              "children": [
+               {
+                "name": "HASH_GROUP_BY",
+                "children": [
+                 {
+                  "name": "PROJECTION",
+                  "children": [
+                   {
+                    "name": "PROJECTION",
+                    "children": [
+                     {
+                      "name": "SEQ_SCAN",
+                      "children": [],
+                      "extra_info": {
+                       "Table": "memory.main.orders",
+                       "Type": "Sequential Scan",
+                       "Projections": [
+                        "customer_id",
+                        "amount"
+                       ],
+                       "Estimated Cardinality": "1200000"
+                      }
+                     }
+                    ],
+                    "extra_info": {
+                     "Projections": [
+                      "CAST(#0 AS USMALLINT)",
+                      "#1"
+                     ],
+                     "Estimated Cardinality": "1200000"
+                    }
+                   }
+                  ],
+                  "extra_info": {
+                   "Projections": [
+                    "customer_id",
+                    "amount"
+                   ],
+                   "Estimated Cardinality": "1200000"
+                  }
+                 }
+                ],
+                "extra_info": {
+                 "Groups": "#0",
+                 "Aggregates": "sum_no_overflow(#1)",
+                 "Estimated Cardinality": "46677"
+                }
+               }
+              ],
+              "extra_info": {
+               "Projections": [
+                "CAST(#0 AS INTEGER)",
+                "#1"
+               ],
+               "Estimated Cardinality": "46677"
+              }
+             }
+            ],
+            "extra_info": {
+             "Expression": "(total > 100.00)",
+             "Estimated Cardinality": "9335"
+            }
+           }
+          ],
+          "extra_info": {
+           "Join Type": "INNER",
+           "Conditions": "id = customer_id",
+           "Estimated Cardinality": "9335"
+          }
+         }
+        ],
+        "extra_info": {
+         "Projections": [
+          "__internal_compress_string_ubigint(#0)",
+          "#1"
+         ],
+         "Estimated Cardinality": "9335"
+        }
+       }
+      ],
+      "extra_info": {
+       "Order By": "total DESC",
+       "Estimated Cardinality": "9335"
+      }
+     }
+    ],
+    "extra_info": {
+     "Projections": [
+      "__internal_decompress_string(#0)",
+      "#1"
+     ],
+     "Estimated Cardinality": "9335"
+    }
+   }
+  ],
+  "union": [
+   {
+    "name": "UNION",
+    "children": [
+     {
+      "name": "HASH_JOIN",
+      "children": [
+       {
+        "name": "SEQ_SCAN",
+        "children": [],
+        "extra_info": {
+         "Table": "memory.main.orders",
+         "Type": "Sequential Scan",
+         "Projections": "customer_id",
+         "Filters": "(amount > 5.00)",
+         "Estimated Cardinality": "240000"
+        }
+       },
+       {
+        "name": "SEQ_SCAN",
+        "children": [],
+        "extra_info": {
+         "Table": "memory.main.customers",
+         "Type": "Sequential Scan",
+         "Projections": [
+          "id",
+          "name"
+         ],
+         "Estimated Cardinality": "50000"
+        }
+       }
+      ],
+      "extra_info": {
+       "Join Type": "RIGHT_SEMI",
+       "Conditions": "#0 = id",
+       "Estimated Cardinality": "10000"
+      }
+     },
+     {
+      "name": "SEQ_SCAN",
+      "children": [],
+      "extra_info": {
+       "Table": "memory.main.customers",
+       "Type": "Sequential Scan",
+       "Projections": [
+        "id",
+        "name"
+       ],
+       "Filters": "(city = 'Pune')",
+       "Estimated Cardinality": "10000"
+      }
+     }
+    ],
+    "extra_info": {}
+   }
+  ],
+  "del": [
+   {
+    "name": "DELETE",
+    "children": [
+     {
+      "name": "SEQ_SCAN",
+      "children": [],
+      "extra_info": {
+       "Table": "memory.main.orders",
+       "Type": "Sequential Scan",
+       "Projections": "",
+       "Filters": "(created_at < '2024-02-01'::DATE)",
+       "Estimated Cardinality": "240000"
+      }
+     }
+    ],
+    "extra_info": {}
+   }
+  ]
+ },
+ "sql": {
+  "demo": "SELECT c.name, count(*) AS orders\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE o.created_at > '2025-12-01'\nGROUP BY c.name\nORDER BY orders DESC\nLIMIT 10",
+  "filter": "SELECT name, city\nFROM customers\nWHERE city = 'Pune'\nORDER BY name",
+  "count": "SELECT count(*)\nFROM orders\nWHERE amount > 5",
+  "cte": "WITH big AS (\n  SELECT customer_id, sum(amount) AS total\n  FROM orders\n  GROUP BY customer_id\n)\nSELECT c.name, b.total\nFROM big b\nJOIN customers c ON c.id = b.customer_id\nWHERE b.total > 100\nORDER BY b.total DESC",
+  "union": "SELECT id, name FROM customers\nWHERE id IN (SELECT customer_id FROM orders WHERE amount > 5)\nUNION ALL\nSELECT id, name FROM customers\nWHERE city = 'Pune'",
+  "del": "DELETE FROM orders\nWHERE created_at < '2024-02-01'"
+ }
+}

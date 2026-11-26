@@ -138,6 +138,11 @@ class SqliteSession implements Session {
       })
       .join('\n');
   }
+
+  async planJson(sql: string): Promise<unknown> {
+    const rows = await this.query(`explain query plan ${sql}`);
+    return rows.map((r) => ({ id: Number(r.id), parent: Number(r.parent), detail: String(r.detail) }));
+  }
 }
 
 export async function open(conn: ResolvedConnection): Promise<Session> {

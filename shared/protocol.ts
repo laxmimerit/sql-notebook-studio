@@ -100,6 +100,47 @@ export interface AiStep {
   status: 'running' | 'done' | 'error';
 }
 
+export const PLAN_MIME = 'application/vnd.sqlnotebook.plan+json';
+
+/** Drivers whose plans Query Flow can read. The renderer uses this to show its button. */
+export const PLAN_DRIVERS: ReadonlySet<string> = new Set(['postgres', 'sqlite', 'duckdb']);
+
+export type StepKind = 'scan' | 'join' | 'filter' | 'group' | 'sort' | 'topn' | 'limit' | 'distinct' | 'window' | 'combine' | 'values' | 'select' | 'write' | 'other';
+
+/** One Query Flow step: one step of the run order, from the database's query plan. */
+export interface PlanStep {
+  /** 1-based, in the order the steps run. */
+  n: number;
+  kind: StepKind;
+  title: string;
+  /** A plain-English sentence. */
+  detail?: string;
+  /** The planner's estimate of the rows this step passes on. */
+  rows?: number;
+  /** Steps whose rows this step reads. */
+  inputs: number[];
+  /** 0-based lines of `PlanPayload.sql` this step comes from. */
+  lines: number[];
+  /** Not listed by the database's plan, but it happens (e.g. SQLite's LIMIT). */
+  inferred?: boolean;
+}
+
+export interface PlanPayload {
+  v: 1;
+  id?: string;
+  connection: string;
+  driver: string;
+  /** The statement shown, as written in the cell. */
+  sql: string;
+  /** 0-based line of the statement in the cell, for line numbers. */
+  firstLine: number;
+  steps: PlanStep[];
+  /** Clause keywords in the order they are written (SELECT, FROM, ...). */
+  written: string[];
+  note?: string;
+  error?: string;
+}
+
 // Messages the renderer sends to the extension.
 export type RendererMessage =
   | { type: 'copy'; text: string }
@@ -108,6 +149,7 @@ export type RendererMessage =
   | { type: 'setChart'; outputId: string; chart?: ChartConfig; view: 'table' | 'chart' }
   | { type: 'fix'; outputId: string }
   | { type: 'explainResult'; outputId: string; resultIndex: number }
+  | { type: 'queryFlow'; outputId: string; resultIndex: number }
   | { type: 'applySql'; outputId: string; sql: string }
   | { type: 'runCell'; outputId: string }
   | { type: 'dismissAi'; outputId: string }

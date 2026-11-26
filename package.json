@@ -84,6 +84,7 @@
         "mimeTypes": [
           "application/vnd.sqlnotebook.result+json",
           "application/vnd.sqlnotebook.ai+json",
+          "application/vnd.sqlnotebook.plan+json",
           "application/vnd.sqlnotebook.error+json"
         ],
         "requiresMessaging": "optional"
@@ -255,6 +256,12 @@
         "title": "Optimize with AI",
         "category": "SQL Notebook Studio",
         "icon": "$(rocket)"
+      },
+      {
+        "command": "sqlNotebook.runOrder",
+        "title": "Show Query Flow",
+        "category": "SQL Notebook Studio",
+        "icon": "$(type-hierarchy-sub)"
       },
       {
         "command": "sqlNotebook.insertAiCell",
@@ -456,6 +463,11 @@
           "group": "inline@1"
         },
         {
+          "command": "sqlNotebook.runOrder",
+          "when": "notebookType == sqlnb && notebookCellType == code",
+          "group": "inline@2"
+        },
+        {
           "command": "sqlNotebook.optimizeCell",
           "when": "notebookType == sqlnb && notebookCellType == code",
           "group": "sqlnb@1"
@@ -530,6 +542,10 @@
         },
         {
           "command": "sqlNotebook.optimizeCell",
+          "when": "notebookType == sqlnb"
+        },
+        {
+          "command": "sqlNotebook.runOrder",
           "when": "notebookType == sqlnb"
         },
         {

@@ -242,3 +242,147 @@
 .sqlnb .ai-io.in { border-left: 2px solid var(--vscode-charts-purple, var(--vscode-focusBorder)); }
 .sqlnb .ai-notice { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .sqlnb .ai-trace .chev { transition: none; } }
+
+/* Query Flow: the planner's steps next to the SQL as written */
+.sqlnb.ro {
+  --ro-c: var(--vscode-charts-blue, var(--vscode-focusBorder));
+  border: 1px solid var(--b); border-left: 3px solid var(--ro-c); border-radius: var(--r);
+  background: color-mix(in srgb, var(--ro-c) 4%, var(--vscode-editor-background));
+  padding: 6px 12px 10px; outline: none;
+}
+.sqlnb.ro:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.sqlnb.ro.error { border-left-color: var(--vscode-editorWarning-foreground); }
+.sqlnb .ro-head { display: flex; align-items: center; gap: 7px; min-height: 28px; }
+.sqlnb .ro-head > .codicon-type-hierarchy-sub { color: var(--ro-c); font-size: 15px; }
+.sqlnb .ro-title { font-weight: 600; font-size: 13px; }
+.sqlnb .ro-play { color: var(--ro-c); }
+.sqlnb .tb:disabled { opacity: 0.4; cursor: default; background: transparent; }
+.sqlnb .ro-error { display: flex; align-items: center; gap: 6px; padding: 6px 0 2px; }
+.sqlnb .ro-error .codicon { color: var(--vscode-editorWarning-foreground); }
+.sqlnb .ro-note { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+
+/* Step colours, by what the step does */
+.sqlnb .k-scan { --k: var(--vscode-charts-blue, #3794ff); }
+.sqlnb .k-join { --k: var(--vscode-charts-purple, #b180d7); }
+.sqlnb .k-filter { --k: var(--vscode-charts-orange, #d18616); }
+.sqlnb .k-group, .sqlnb .k-distinct, .sqlnb .k-window { --k: var(--vscode-charts-green, #89d185); }
+.sqlnb .k-sort, .sqlnb .k-topn, .sqlnb .k-limit { --k: var(--vscode-charts-yellow, #cca700); }
+.sqlnb .k-write { --k: var(--vscode-charts-red, #f14c4c); }
+.sqlnb .k-combine, .sqlnb .k-values, .sqlnb .k-select, .sqlnb .k-other { --k: var(--vscode-descriptionForeground); }
+
+/* Three panes: SQL | what this step does | flow. They wrap on narrow windows. */
+.sqlnb .ro-main { display: flex; gap: 12px; align-items: flex-start; margin-top: 6px; flex-wrap: wrap; }
+.sqlnb .ro-pane { min-width: 0; }
+.sqlnb .ro-sql { flex: 1 1 340px; }
+.sqlnb .ro-flow { flex: 0 1 auto; max-width: 100%; }
+.sqlnb .ro-pane-label { margin-bottom: 4px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.sqlnb .ro-pane-label .muted { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.sqlnb .ro-code {
+  min-width: 0; padding: 4px 0; border: 1px solid var(--b); border-radius: 6px;
+  background: var(--vscode-editor-background); font-family: var(--mono); font-size: var(--mono-size); overflow-x: auto;
+}
+.sqlnb .ro-line { display: flex; align-items: center; min-height: 22px; padding-right: 10px; border-left: 3px solid transparent; white-space: pre; }
+.sqlnb .ro-line.has { cursor: pointer; }
+.sqlnb .ro-line.has:hover { background: var(--hover); }
+.sqlnb .ro-line.on { background: color-mix(in srgb, var(--ro-c) 16%, transparent); border-left-color: var(--ro-c); }
+.sqlnb .ro-ln { flex: none; width: 32px; padding-right: 8px; text-align: right; color: var(--vscode-editorLineNumber-foreground, var(--muted)); user-select: none; }
+.sqlnb .ro-line.on .ro-ln { color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-foreground)); }
+.sqlnb .ro-badges { flex: none; display: inline-flex; gap: 2px; width: 52px; padding-right: 8px; justify-content: flex-end; }
+.sqlnb .ro-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  font-family: var(--vscode-font-family); font-size: 10px; font-weight: 600;
+  border: 1px solid var(--b); color: var(--muted);
+}
+.sqlnb .ro-badge.done { color: var(--vscode-foreground); border-color: color-mix(in srgb, var(--ro-c) 50%, var(--b)); }
+.sqlnb .ro-badge.on { background: var(--ro-c); border-color: var(--ro-c); color: var(--vscode-button-foreground, #fff); }
+.sqlnb .ro-text { flex: 1; }
+.sqlnb .ro-tag {
+  flex: none; display: inline-flex; align-items: center; gap: 3px; margin-left: 12px; padding: 0 7px 0 4px; height: 18px; border-radius: 9px;
+  font-family: var(--vscode-font-family); font-size: 10.5px; font-weight: 600;
+  color: var(--vscode-editor-background); background: var(--k);
+}
+.sqlnb .ro-tag .codicon { font-size: 12px; }
+
+/* The middle pane: what the current step does */
+.sqlnb .ro-explain {
+  flex: 1 1 300px; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 12px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--k) 45%, var(--b)); border-top: 3px solid var(--k);
+  background: color-mix(in srgb, var(--k) 7%, var(--vscode-editor-background));
+}
+.sqlnb .ro-explain-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sqlnb .ro-explain-top .ro-pane-label { margin: 0; font-variant-numeric: tabular-nums; }
+.sqlnb .ro-kind {
+  display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--k); border: 1px solid color-mix(in srgb, var(--k) 60%, transparent); background: color-mix(in srgb, var(--k) 12%, transparent);
+}
+.sqlnb .ro-explain-title { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.sqlnb .ro-explain-n {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%;
+  font-size: 13px; background: var(--k); color: var(--vscode-editor-background);
+}
+.sqlnb .ro-explain-detail { margin: 0; font-size: 13px; line-height: 1.55; }
+.sqlnb .ro-facts { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 2px 0 0; padding-top: 8px; border-top: 1px solid var(--b); align-items: center; }
+.sqlnb .ro-facts dt { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11.5px; }
+.sqlnb .ro-facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.sqlnb .ro-link {
+  display: inline-flex; align-items: center; gap: 5px; height: 21px; padding: 0 8px 0 3px; border-radius: 11px;
+  border: 1px solid var(--b); background: var(--vscode-editor-background); color: var(--vscode-foreground); font-size: 11.5px; cursor: pointer;
+}
+.sqlnb .ro-link:hover { border-color: var(--k); }
+.sqlnb .ro-link-n {
+  display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%;
+  font-size: 9.5px; font-weight: 700; background: var(--k); color: var(--vscode-editor-background);
+}
+.sqlnb .ro-inferred { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.sqlnb .ro-inferred .codicon { margin-top: 1px; }
+.sqlnb .ro-progress { display: flex; gap: 3px; padding-top: 4px; }
+.sqlnb .ro-progress button {
+  flex: 1; height: 6px; padding: 0; border: none; border-radius: 3px; cursor: pointer;
+  background: color-mix(in srgb, var(--k) 25%, transparent); transition: background 0.15s, height 0.15s;
+}
+.sqlnb .ro-progress button.done { background: color-mix(in srgb, var(--k) 65%, transparent); }
+.sqlnb .ro-progress button.on { background: var(--k); height: 8px; margin-top: -1px; }
+
+/* The flow graph */
+.sqlnb .ro-graph { overflow-x: auto; padding: 2px 0; }
+.sqlnb .ro-graph svg { display: block; font-family: var(--vscode-font-family); }
+.sqlnb .ro-edge path { fill: none; stroke: var(--b); stroke-width: 1.5; transition: stroke 0.15s; }
+.sqlnb .ro-edge.done path { stroke: color-mix(in srgb, var(--vscode-foreground) 35%, transparent); }
+.sqlnb .ro-edge.on path { stroke: var(--ro-c); stroke-width: 2.2; }
+.sqlnb .ro-arrowhead { fill: color-mix(in srgb, var(--vscode-foreground) 45%, transparent); }
+.sqlnb .ro-edge-label { font-size: 10px; fill: var(--muted); }
+.sqlnb .ro-edge.on .ro-edge-label { fill: var(--vscode-foreground); font-weight: 600; }
+.sqlnb .ro-node { cursor: pointer; }
+.sqlnb .ro-node > rect:first-of-type { fill: var(--vscode-editor-background); stroke: var(--b); stroke-width: 1; transition: stroke 0.15s, fill 0.15s; }
+.sqlnb .ro-node:hover > rect:first-of-type { fill: var(--hover); }
+.sqlnb .ro-node.inferred > rect:first-of-type { stroke-dasharray: 4 3; }
+.sqlnb .ro-node.on > rect:first-of-type { stroke: var(--k); stroke-width: 2; fill: color-mix(in srgb, var(--k) 14%, var(--vscode-editor-background)); }
+.sqlnb .ro-node-bar { fill: var(--k); }
+.sqlnb .ro-node-n { fill: none; stroke: var(--k); stroke-width: 1.5; }
+.sqlnb .ro-node.on .ro-node-n, .sqlnb .ro-node.done .ro-node-n { fill: var(--k); }
+.sqlnb .ro-node-num { font-size: 11px; font-weight: 600; fill: var(--vscode-foreground); }
+.sqlnb .ro-node.on .ro-node-num, .sqlnb .ro-node.done .ro-node-num { fill: var(--vscode-editor-background); }
+.sqlnb .ro-node-title { font-size: 12px; font-weight: 600; fill: var(--vscode-foreground); }
+.sqlnb .ro-node-sub { font-size: 10.5px; fill: var(--muted); }
+.sqlnb .ro-node:not(.on):not(.done) { opacity: 0.7; }
+
+/* You write / It runs */
+.sqlnb .ro-strips { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--b); }
+.sqlnb .ro-strip { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.sqlnb .ro-strip-label { width: 66px; flex: none; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.sqlnb .ro-chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 11px;
+  border: 1px solid var(--b); background: transparent; font-size: 11.5px; white-space: nowrap; color: var(--vscode-foreground);
+}
+.sqlnb .ro-chip.written { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.sqlnb .ro-chip.step { border-left: 3px solid var(--k); cursor: pointer; }
+.sqlnb .ro-chip.step:hover { background: var(--hover); }
+.sqlnb .ro-chip.step:not(.on):not(.done) { color: var(--muted); }
+.sqlnb .ro-chip.step.on { background: color-mix(in srgb, var(--k) 18%, transparent); border-color: var(--k); }
+.sqlnb .ro-chip-n { font-weight: 600; }
+
+/* The Query Flow button in a result's toolbar */
+.sqlnb .tb.flow-btn { width: auto; gap: 5px; padding: 0 9px; border: 1px solid var(--b); color: var(--vscode-foreground); }
+.sqlnb .tb.flow-btn .codicon { color: var(--vscode-charts-blue, var(--vscode-focusBorder)); }
+@media (prefers-reduced-motion: reduce) { .sqlnb .ro-edge path, .sqlnb .ro-node > rect, .sqlnb .ro-progress button { transition: none; } }

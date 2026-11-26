@@ -243,7 +243,7 @@ export class Kernels implements vscode.Disposable {
     }
   }
 
-  private async variablesFor(nb: vscode.NotebookDocument, names: string[]): Promise<Record<string, string> | undefined> {
+  async variablesFor(nb: vscode.NotebookDocument, names: string[]): Promise<Record<string, string> | undefined> {
     const saved = { ...((nb.metadata?.variables as Record<string, string>) ?? {}) };
     const session = this.sessionValues.get(nb.uri.toString()) ?? {};
     const values: Record<string, string> = { ...session, ...saved };

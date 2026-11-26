@@ -56,13 +56,28 @@ function pgNode(p: any): PNode {
   } else if (t === 'Values Scan') n.kind = 'values';
   else if (t === 'Hash Join' || t === 'Merge Join' || t === 'Nested Loop') {
     n.kind = 'join';
-    n.joinType = p['Join Type'];
     n.join = p['Hash Cond'] ?? p['Merge Cond'] ?? p['Join Filter'];
-    // A hash join reads the hashed (inner) side first, then probes it.
-    if (t === 'Hash Join' && children.length === 2) n.children = [children[1], children[0]];
+    const jt = String(p['Join Type'] ?? 'Inner');
+    n.joinType = jt;
+    if (children.length === 2) {
+      const [outer, inner] = children;
+      // A hash join reads the hashed (inner) side first, then probes it.
+      if (t === 'Hash Join') n.children = [inner, outer];
+      // Semi and anti joins keep rows of one side: put that side first ("Right Anti" keeps the inner side).
+      const half = /^(Right )?(Semi|Anti)$/.exec(jt);
+      if (half) {
+        n.joinType = half[2];
+        n.children = half[1] ? [inner, outer] : [outer, inner];
+      } else if (jt === 'Left' || jt === 'Right') {
+        // An outer join keeps the unmatched rows of one side, which may now be first or second.
+        n.joinType = n.children[0] === (jt === 'Left' ? outer : inner) ? 'Left' : 'Right';
+      }
+    }
   } else if (t === 'Aggregate' || t === 'GroupAggregate' || t === 'HashAggregate' || t === 'Group') {
     n.kind = 'group';
     n.keys = list(p['Group Key']);
+    // UNION removes duplicates by grouping on every column.
+    if (n.keys && children.length === 1 && (children[0].kind === 'combine' || (children[0].kind === 'sort' && children[0].children[0]?.kind === 'combine'))) n.kind = 'distinct';
   } else if (t === 'Sort' || t === 'Incremental Sort') {
     n.kind = 'sort';
     n.keys = list(p['Sort Key']);
@@ -74,6 +89,11 @@ function pgNode(p: any): PNode {
     n.kind = 'write';
     n.op = p.Operation ?? 'Write';
     n.table = p['Relation Name'];
+    // Without RETURNING the plan estimates 0 output rows, which says nothing about the rows written.
+    if (!n.rows) n.rows = undefined;
+  } else if (t === 'Result' && /^false$/i.test(String(p['One-Time Filter'] ?? ''))) {
+    // WHERE 1 = 0 and the like: nothing below runs.
+    return { kind: 'other', op: 'EMPTY_RESULT', rows: 0, children: [] };
   } else if (t === 'Result') n.kind = children.length ? 'hidden' : 'values';
   else if (PG_HIDDEN.has(t)) n.kind = 'hidden';
   if (p.Filter) n.filter = p.Filter;
@@ -765,7 +785,7 @@ export function mask(sql: string): string {
   return out.join('');
 }
 
-const CLAUSE = /\b(select|from|(?:natural\s+|cross\s+|(?:left|right|full|inner)(?:\s+outer)?\s+)?join|on|where|group\s+by|having|window|order\s+by|limit|offset|fetch|union(?:\s+all)?|intersect|except|returning|set|values|update|delete|insert\s+into|into|using)\b/gi;
+const CLAUSE = /\b(select|from|(?:natural\s+|cross\s+|(?:left|right|full|inner)(?:\s+outer)?\s+)?join|(?<!\bdistinct\s+)on|where|group\s+by|having|window|order\s+by|limit|offset|fetch|union(?:\s+all)?|intersect|except|returning|set|values|update|delete|insert\s+into|into|using)\b/gi;
 
 const NOT_ALIAS = new Set(['where', 'join', 'left', 'right', 'full', 'inner', 'outer', 'cross', 'natural', 'on', 'using', 'group', 'order', 'limit', 'offset', 'fetch', 'having', 'window', 'union', 'intersect', 'except', 'returning', 'set', 'values', 'select', 'lateral', 'tablesample', 'with', 'as', 'for']);
 
@@ -813,7 +833,7 @@ export function shape(sql: string): SqlShape {
   for (const [open, list] of groups) {
     const groupEnd = open < 0 ? sql.length : closeOf.get(open) ?? sql.length;
     const isTop = open < 0;
-    if (!isTop && list[0].kw !== 'SELECT' && !list.some((c) => c.kw === 'SELECT')) continue; // OVER (...), extract(... from ...)
+    if (!isTop && !['SELECT', 'DELETE', 'UPDATE', 'INTO'].includes(list[0].kw) && !list.some((c) => c.kw === 'SELECT')) continue; // OVER (...), extract(... from ...); not a write inside WITH
     for (let k = 0; k < list.length; k++) {
       let e = k + 1 < list.length ? list[k + 1].start : groupEnd;
       while (e > list[k].start && /\s/.test(sql[e - 1])) e--;
@@ -1158,9 +1178,11 @@ export function buildSteps(root: PNode, sql: string, driver = ''): BuildResult {
       detail = `Stops once it has ${k ?? 'enough'} ${k === 1 ? 'row' : 'rows'}${cs.some((c) => c.kw === 'OFFSET') ? ', after skipping the OFFSET rows' : ''}.`;
     } else if (n.kind === 'distinct') {
       const b = blockAt(sh, positions);
-      add(clauseLines(sh, clausesOf(b, 'SELECT')).slice(0, 1));
+      const sel = clausesOf(b, 'SELECT');
+      add(clauseLines(sh, sel).slice(0, 1));
+      const on = sel.length ? /^select\s+distinct\s+on\s*\(([^)]*)\)/i.exec(sh.text.slice(sel[0].start, sel[0].end)) : null;
       title = 'Remove duplicates';
-      detail = 'Keeps one copy of each distinct row.';
+      detail = on ? `Keeps the first row for each ${short(on[1].replace(/\s+/g, ' ').trim())}.` : 'Keeps one copy of each distinct row.';
     } else if (n.kind === 'window') {
       const b = blockAt(sh, positions);
       const sel = clausesOf(b, 'SELECT');
@@ -1194,7 +1216,10 @@ export function buildSteps(root: PNode, sql: string, driver = ''): BuildResult {
     } else if (n.kind === 'write') {
       const op = n.op.toLowerCase();
       const kw = op === 'insert' ? ['INTO', 'VALUES'] : op === 'update' ? ['UPDATE', 'SET'] : ['DELETE', 'FROM'];
-      add(clauseLines(sh, clausesOf(top, ...kw)).slice(0, op === 'update' ? undefined : 2));
+      // The write may sit inside WITH (... RETURNING ...), not in the statement itself.
+      const head = op === 'insert' ? 'INTO' : op === 'update' ? 'UPDATE' : 'DELETE';
+      const wb = clausesOf(top, head).length ? top : sh.blocks.find((x) => clausesOf(x, head).length) ?? top;
+      add(clauseLines(sh, clausesOf(wb, ...kw)).slice(0, op === 'update' ? undefined : 2));
       if (!lines.size) add([0]);
       const t = n.table ?? sh.refs[0]?.name ?? 'the table';
       title = op === 'insert' ? `Insert into ${t}` : op === 'update' ? `Update ${t}` : op === 'delete' ? `Delete from ${t}` : `${n.op} ${t}`;
@@ -1270,14 +1295,14 @@ function selectAggLines(sh: SqlShape, b: Block): number[] {
 
 function addSelectStep(sh: SqlShape, top: Block, steps: PlanStep[]) {
   const sel = clausesOf(top, 'SELECT');
-  if (sel.length !== 1 || clausesOf(top, 'UNION', 'INTERSECT', 'EXCEPT').length || steps.some((s) => s.kind === 'write')) return;
+  if (sel.length !== 1 || clausesOf(top, 'UNION', 'INTERSECT', 'EXCEPT').length || clausesOf(top, 'INSERT INTO', 'INTO', 'UPDATE', 'DELETE').length) return;
   const consumers = (n: number) => steps.filter((s) => s.inputs.includes(n));
   // The last step that is not a sort, limit or distinct makes the output rows.
   let at = steps[steps.length - 1];
   while (['limit', 'sort', 'topn', 'distinct'].includes(at.kind) && at.inputs.length === 1) at = steps[at.inputs[0] - 1];
   if (['limit', 'sort', 'topn', 'distinct'].includes(at.kind)) return;
   const lines = clauseLines(sh, sel);
-  const list = sh.text.slice(sel[0].start, sel[0].end).replace(/^select\s+(distinct\s+|all\s+)?(top\s*(?:\(\s*[^)]*\)|\d+)(\s+percent)?(\s+with\s+ties)?\s+)?/i, '').replace(/\s+/g, ' ').trim();
+  const list = sh.text.slice(sel[0].start, sel[0].end).replace(/^select\s+(distinct\s+(?:on\s*\([^)]*\)\s*)?|all\s+)?(top\s*(?:\(\s*[^)]*\)|\d+)(\s+percent)?(\s+with\s+ties)?\s+)?/i, '').replace(/\s+/g, ' ').trim();
   const idx = at.n; // insert right after `at`
   const step: PlanStep = { n: idx + 1, kind: 'select', title: 'Pick columns', detail: `Builds each output row: ${short(list, 70)}.`, rows: at.rows, inputs: [at.n], lines, inferred: true };
   const after = consumers(at.n);
@@ -1375,6 +1400,18 @@ function derivedNames(sql: string): string[] {
     .blocks.filter((b) => b.name)
     .sort((a, b) => a.start - b.start)
     .map((b) => b.name!);
+}
+
+/**
+ * PostgreSQL often removes the duplicates of SELECT DISTINCT by grouping on every column
+ * (HashAggregate). With no GROUP BY written, that group step is the DISTINCT.
+ */
+function pgDistinct(root: PNode, sql: string): PNode {
+  if (!topLevel(sql, /^select\s+distinct\b/i) || topLevel(sql, /^group\s+by\b/i) || hasOwn(root, 'distinct')) return root;
+  let cur: PNode | undefined = root;
+  while (cur && cur.kind !== 'group' && cur.children.length === 1 && ['sort', 'topn', 'limit', 'hidden'].includes(cur.kind)) cur = cur.children[0];
+  if (cur?.kind === 'group' && cur.keys) cur.kind = 'distinct';
+  return root;
 }
 
 /** A keyword at the statement's own level (not inside brackets: subqueries, CTEs). */
@@ -1484,7 +1521,7 @@ function mssqlEmpty(root: PNode, sql: string): PNode {
 export function planSteps(driver: string, raw: unknown, sql: string): BuildResult {
   const tableOf = (a: string) => shape(sql).refs.find((r) => r.alias?.toLowerCase() === a.toLowerCase())?.name;
   const root =
-    driver === 'postgres' ? fromPostgres(raw)
+    driver === 'postgres' ? pgDistinct(fromPostgres(raw), sql)
     : driver === 'duckdb' ? fromDuckdb(raw)
     : driver === 'mysql' ? mysqlAddDistinct(mysqlAddGroup(fromMysql(raw, mysqlFirstTable(sql), derivedNames(sql)), sql), sql)
     : driver === 'mssql' ? mssqlEmpty(fromMssql(raw), sql)

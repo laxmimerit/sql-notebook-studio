@@ -159,6 +159,15 @@ for (const c of cases) {
       const [r] = await run(s, 'select name from t where id = 1', c.driver);
       expect(r.rows[0][0]).toBe('a');
     });
+    it.runIf(c.driver === 'postgres')('knows when a transaction is open (Query Steps will not run then)', async () => {
+      expect(s.inTransaction!()).toBe(false);
+      await run(s, "begin; update t set name = 'zz' where id = 1", c.driver);
+      expect(s.inTransaction!()).toBe(true);
+      await run(s, 'rollback', c.driver);
+      expect(s.inTransaction!()).toBe(false);
+      const [r] = await run(s, 'select name from t where id = 1', c.driver);
+      expect(r.rows[0][0]).toBe('a');
+    });
     it('can be stopped and keeps working', async () => {
       const t0 = Date.now();
       const p = run(s, c.slow, c.driver).then(

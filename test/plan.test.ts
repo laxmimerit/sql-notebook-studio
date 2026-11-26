@@ -10,6 +10,7 @@ type Fx = Record<'sqlite' | 'duckdb', Record<string, unknown>> & {
   mysql: { tree: Record<string, Case>; json: Record<string, Case> };
   mssql: Record<string, Case>;
   mariadb: Record<string, Case>;
+  postgres: Record<string, Case>;
 };
 const F = fx as unknown as Fx;
 
@@ -214,6 +215,63 @@ describe('PostgreSQL plans', () => {
     expect(steps.map((s) => s.title)).toEqual(['Read orders', 'Read customers', 'Join orders + customers', 'Pick columns']);
     expect(steps[1].detail).toContain('customers_pkey');
     expect(steps[2].detail).toContain('c.id = o.customer_id');
+  });
+
+  // Plans captured from PostgreSQL 17 (EXPLAIN (FORMAT JSON)).
+  const pg = (c: Case) => summary('postgres', c.plan, c.sql);
+  const pgDetail = (c: Case, i: number) => planSteps('postgres', c.plan, c.sql).steps[i].detail;
+
+  it('live: GROUP BY with its HAVING, ORDER BY and LIMIT, in run order', () => {
+    expect(pg(F.postgres.demo)).toEqual([
+      'scan:Read customers@3',
+      'scan:Read orders@2,4',
+      'join:Join customers + orders@3',
+      'group:Group by c.name@5,6',
+      'select:Pick columns@1',
+      'sort:Sort by n desc@7',
+      'limit:Keep first 3@8',
+    ]);
+  });
+
+  it('live: a Hash Right Join is still the LEFT JOIN that keeps unmatched customers', () => {
+    expect(pgDetail(F.postgres.left, 2)).toMatch(/keeping customers rows with no match/);
+  });
+
+  it('live: a Hash Right Anti Join is NOT EXISTS, keeping customers', () => {
+    expect(pg(F.postgres.notexists)[2]).toBe('join:Keep customers not in orders@1');
+  });
+
+  it('live: SELECT DISTINCT and UNION by hashing are duplicate removal, not GROUP BY', () => {
+    expect(pg(F.postgres.distinct)).toEqual(['scan:Read customers@1', 'select:Pick columns@1', 'distinct:Remove duplicates@1']);
+    expect(pg(F.postgres.union)).toEqual(['scan:Read customers@1', 'scan:Read orders@1', 'combine:Combine results@1', 'distinct:Remove duplicates@1']);
+  });
+
+  it('live: DISTINCT ON keeps the first row of each group, after the sort', () => {
+    expect(pg(F.postgres.distincton).map((s) => s.split('@')[0])).toEqual([
+      'scan:Read orders',
+      'select:Pick columns',
+      'sort:Sort by customer_id, amount desc',
+      'distinct:Remove duplicates',
+    ]);
+    expect(pgDetail(F.postgres.distincton, 1)).toBe('Builds each output row: customer_id, amount.');
+    expect(pgDetail(F.postgres.distincton, 3)).toBe('Keeps the first row for each customer_id.');
+  });
+
+  it('live: writes have no "0 rows" estimate, and WHERE 1 = 0 reads nothing', () => {
+    const { steps } = planSteps('postgres', F.postgres.update.plan, F.postgres.update.sql);
+    expect(steps.map((s) => s.title)).toEqual(['Read orders', 'Update orders']);
+    expect(steps[1].rows).toBeUndefined();
+    expect(pg(F.postgres.empty)[0]).toBe('other:Skip: no row can match@');
+  });
+
+  it('live: a DELETE inside WITH points at its own lines, and the SELECT still picks columns', () => {
+    expect(pg(F.postgres.cteWrite)).toEqual([
+      'scan:Read orders@2,3',
+      'write:Delete from orders@2',
+      'scan:Read gone@7',
+      'group:Total all rows@6',
+      'select:Pick columns@6',
+    ]);
   });
 });
 

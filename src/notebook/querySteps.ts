@@ -8,10 +8,21 @@ import { splitStatements, type Statement } from '../db/splitter';
 import { SAMPLE_ROWS, linesIn, planQuerySteps, runQuerySteps, NOT_SELECT } from '../db/steps';
 import { findVariables, substitute } from '../util/variables';
 import { isSqlLanguage } from './serializer';
-import { closeOutput, cursorOffset, payloadOf, resultIdOf, withOutput } from './runOrder';
+import { hasSeveralStatements } from '../db/safety';
+import { SEVERAL, UNTRUSTED, closeOutput, cursorOffset, payloadOf, resultIdOf, withOutput } from './runOrder';
 import { outputId, setOutputs, type Kernels } from './kernels';
 
 const SELECTS = /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(select|with)\b/i;
+
+/**
+ * In PostgreSQL one failed or stopped query ends the whole open transaction, so
+ * a step that fails (or a click on Stop) would throw away the user's uncommitted work.
+ */
+class OpenTransaction extends Error {
+  constructor() {
+    super('A transaction is open on this connection (BEGIN without COMMIT or ROLLBACK). Query Steps did not run, so a failed step cannot undo your changes. Finish the transaction, then try again.');
+  }
+}
 
 export const STEPS_NOTE = 'Each step runs your query up to that clause, so you see real rows. Only SELECT queries are run.';
 
@@ -29,6 +40,10 @@ export class QuerySteps {
     const editor = vscode.window.activeNotebookEditor;
     const cell = arg ?? (editor ? editor.notebook.cellAt(editor.selection.start) : undefined);
     if (!cell || cell.notebook.notebookType !== 'sqlnb' || !isSqlLanguage(cell.document.languageId)) return;
+    if (!vscode.workspace.isTrusted) {
+      void vscode.window.showWarningMessage(UNTRUSTED);
+      return;
+    }
     const key = cell.document.uri.toString();
     const running = this.active.get(key);
     if (running) {
@@ -75,7 +90,7 @@ export class QuerySteps {
         plain = substitute(plain, values);
       }
     }
-    const plan = stmt ? planQuerySteps(plain, conn.driver) : { error: NOT_SELECT };
+    const plan = !stmt ? { error: NOT_SELECT } : hasSeveralStatements(plain, conn.driver) ? { error: SEVERAL } : planQuerySteps(plain, conn.driver);
     // Lines come from the statement as written; variables can change offsets.
     const asWritten = plain === shown ? plan : planQuerySteps(shown, conn.driver);
     const sameShape = 'steps' in plan && 'steps' in asWritten && asWritten.steps.length === plan.steps.length;
@@ -109,6 +124,7 @@ export class QuerySteps {
         };
         try {
           const session = await this.kernels.session(nb, conn);
+          if (session.inTransaction?.()) throw new OpenTransaction();
           cancel = () => void session.cancel().catch(() => undefined);
           const sub = exec.token.onCancellationRequested(() => {
             stopped = true;
@@ -129,7 +145,7 @@ export class QuerySteps {
             sub.dispose();
           }
         } catch (e) {
-          payload.error = `Can't connect to "${conn.name}": ${e instanceof Error ? e.message : String(e)}`;
+          payload.error = e instanceof OpenTransaction ? e.message : `Can't connect to "${conn.name}": ${e instanceof Error ? e.message : String(e)}`;
         }
         payload.running = false;
         await push();

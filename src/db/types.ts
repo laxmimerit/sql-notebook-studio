@@ -108,6 +108,8 @@ export interface Session {
   explain(sql: string): Promise<string | undefined>;
   /** The plan as data, for Query Flow: what src/db/plan.ts reads for this driver. Plans only; never runs the query. */
   planJson?(sql: string): Promise<unknown>;
+  /** True while a transaction the user began is open (or failed), where the driver can tell. */
+  inTransaction?(): boolean;
 }
 
 export class QueryFailure extends Error {

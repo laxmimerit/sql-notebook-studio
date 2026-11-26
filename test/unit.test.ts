@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { splitStatements } from '../src/db/splitter';
 import { parseNotebook, serializeNotebook, cellsFromSqlFile } from '../src/notebook/format';
 import { parseConnectionString } from '../src/connections/connString';
-import { classify } from '../src/db/safety';
+import { classify, hasSeveralStatements } from '../src/db/safety';
 import { formatDate, kindFromType, toCell } from '../src/db/values';
 import { findVariables, substitute, resolveEnv } from '../src/util/variables';
 import { extractSql, stripThinking } from '../src/ai/prompts';
@@ -161,6 +161,19 @@ describe('safety', () => {
   it('does not look inside a routine body being defined', () => {
     expect(classify('CREATE PROCEDURE purge AS BEGIN SELECT 1; DELETE FROM logs; END', 'mssql')).toEqual({ write: true, risk: undefined });
     expect(classify('CREATE TRIGGER trg AFTER INSERT ON t FOR EACH ROW BEGIN UPDATE stats SET n = n + 1; END', 'mysql')).toEqual({ write: true, risk: undefined });
+  });
+
+  it('finds the end of a CTE body past nested brackets', () => {
+    expect(classify('WITH d AS (UPDATE t SET a = coalesce(b, 0) WHERE id = 1 RETURNING *) SELECT * FROM d', 'postgres')).toEqual({ write: true, risk: undefined });
+    expect(classify('WITH d AS (DELETE FROM t RETURNING f(x)) SELECT * FROM d', 'postgres').risk).toBe('DELETE without WHERE');
+  });
+
+  it('tells when a variable value added a statement', () => {
+    expect(hasSeveralStatements('select * from t where id = 1; drop table t', 'postgres')).toBe(true);
+    expect(hasSeveralStatements('select * from t where id = 1;', 'postgres')).toBe(false);
+    expect(hasSeveralStatements("select * from t where name = 'a;b' -- x; y", 'postgres')).toBe(false);
+    expect(hasSeveralStatements('select 1; -- done', 'postgres')).toBe(false);
+    expect(hasSeveralStatements('select * from t where id = 1; drop table t', 'mssql')).toBe(true);
   });
 
   it('keeps SELECT INTO a write', () => {

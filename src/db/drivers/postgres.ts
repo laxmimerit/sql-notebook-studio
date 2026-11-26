@@ -149,6 +149,12 @@ class PgSession implements Session {
     return r.map((x) => x['QUERY PLAN']).join('\n');
   }
 
+  inTransaction(): boolean {
+    // 'I' idle, 'T' in a transaction, 'E' in a failed transaction (pg 8.20+).
+    const status = (this.c as { getTransactionStatus?(): string | null }).getTransactionStatus?.();
+    return status === 'T' || status === 'E';
+  }
+
   async planJson(sql: string): Promise<unknown> {
     const r = await this.q<Record<string, unknown>>(`explain (format json) ${sql}`);
     const plan = r[0]?.['QUERY PLAN'];

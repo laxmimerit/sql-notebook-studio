@@ -6,6 +6,7 @@ import { PLAN_MIME, RESULT_MIME, sameStatement, type PlanPayload } from '../../s
 import { PLAN_DRIVERS, planSteps } from '../db/plan';
 import { splitStatements, type Statement } from '../db/splitter';
 import { DRIVERS } from '../db/types';
+import { hasSeveralStatements } from '../db/safety';
 import { findVariables, substitute } from '../util/variables';
 import { isSqlLanguage } from './serializer';
 import { outputId, setOutputs, type Kernels } from './kernels';
@@ -14,6 +15,12 @@ import { outputId, setOutputs, type Kernels } from './kernels';
 const PLANNABLE = /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*\(?\s*(select|with|insert|update|delete|replace|values|table)\b/i;
 
 export const NOTE = "Estimated by the database's planner. The query did not run.";
+
+/** Same words as a cell run in an untrusted workspace. */
+export const UNTRUSTED = 'SQL Notebook Studio runs queries only in trusted workspaces.';
+
+/** A {{variable}} value that adds a statement (`1; DROP TABLE t`): it is never sent. */
+export const SEVERAL = 'A variable value adds a second statement (it has a ;), so nothing was sent to the database.';
 
 export class RunOrder {
   constructor(private readonly kernels: Kernels) {}
@@ -26,6 +33,10 @@ export class RunOrder {
     const editor = vscode.window.activeNotebookEditor;
     const cell = arg ?? (editor ? editor.notebook.cellAt(editor.selection.start) : undefined);
     if (!cell || cell.notebook.notebookType !== 'sqlnb' || !isSqlLanguage(cell.document.languageId)) return;
+    if (!vscode.workspace.isTrusted) {
+      void vscode.window.showWarningMessage(UNTRUSTED);
+      return;
+    }
     const text = cell.document.getText().replace(/\r\n?/g, '\n');
     if (!text.trim()) return;
     const nb = cell.notebook;
@@ -67,7 +78,8 @@ export class RunOrder {
         if (!values) return;
         plain = substitute(plain, values);
       }
-      try {
+      if (hasSeveralStatements(plain, conn.driver)) payload.error = SEVERAL;
+      else try {
         const session = await this.kernels.session(nb, conn);
         const raw = await session.planJson!(plain);
         const built = planSteps(conn.driver, raw, stmt.sql);

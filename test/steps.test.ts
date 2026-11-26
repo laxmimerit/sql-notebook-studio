@@ -63,6 +63,13 @@ describe('planQuerySteps', () => {
     ]);
   });
 
+  it('reads MySQL # comments as comments', () => {
+    expect(kinds('select a, count(*) from t # drop old ones\nwhere a > 1 # keep big\ngroup by a', 'mysql')).toEqual(['from:FROM', 'where:WHERE', 'group:GROUP BY', 'select:SELECT']);
+    const p = planQuerySteps('select * from t\nwhere a > 1 # keep big', 'mysql') as StepPlan;
+    const removed = p.steps.find((x) => x.kind === 'where')!.removed!.sample[0];
+    expect(render(p.prefix, removed, 'mysql', 51)).not.toContain('#');
+  });
+
   it('turns a comma join into a join step', () => {
     expect(kinds('select * from orders o, customers c where c.id = o.customer_id')).toEqual(['from:FROM', 'join:, (comma join)', 'where:WHERE', 'select:SELECT']);
   });

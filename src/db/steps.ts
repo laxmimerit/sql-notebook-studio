@@ -78,7 +78,7 @@ export function scan(sql: string, driver: string): { clean: string; m: string } 
   let i = 0;
   while (i < sql.length) {
     const c = sql[i];
-    if (c === '-' && sql[i + 1] === '-') {
+    if ((c === '-' && sql[i + 1] === '-') || (c === '#' && driver === 'mysql')) {
       const e = sql.indexOf('\n', i);
       const end = e < 0 ? sql.length : e;
       blank(clean, i, end);

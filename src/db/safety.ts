@@ -75,13 +75,31 @@ function classifyOne(sql: string, mask: string, dialect?: DriverId): Classificat
   return { write, risk };
 }
 
+/**
+ * True when `sql` holds more than one statement: a `;` outside strings, quoted
+ * names and comments, other than a final one. Query Flow and Query Steps fill in
+ * {{variables}} after the cell is split, so a value like `1; DROP TABLE t` would
+ * otherwise reach the database as a second statement.
+ */
+export function hasSeveralStatements(sql: string, dialect?: DriverId): boolean {
+  return maskNested(sql, dialect).replace(/;\s*$/, '').includes(';');
+}
+
 /** The bodies of the CTEs in a WITH statement: `name AS (body)`. */
 function cteBodies(text: string, top: string): string[] {
   const out: string[] = [];
   const re = /\bAS\s*(?:(?:NOT\s+)?MATERIALIZED\s*)?\(/gi;
   for (let m = re.exec(top); m; m = re.exec(top)) {
     const open = m.index + m[0].length - 1;
-    const close = top.indexOf(')', open + 1);
+    // The mask keeps nested brackets, so count them to find the one that closes this body.
+    let close = -1;
+    for (let k = open + 1, depth = 1; k < top.length; k++) {
+      if (top[k] === '(') depth++;
+      else if (top[k] === ')' && --depth === 0) {
+        close = k;
+        break;
+      }
+    }
     out.push(text.slice(open + 1, close === -1 ? text.length : close));
   }
   return out;

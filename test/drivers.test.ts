@@ -141,7 +141,7 @@ for (const c of cases) {
       if (c.driver !== 'mssql') expect(plan && plan.length).toBeGreaterThan(0);
     });
     it.runIf(PLAN_DRIVERS.has(c.driver))('plans a query as run-order steps', async () => {
-      const sql = 'select id from t where id > 0 order by id desc limit 1';
+      const sql = c.driver === 'mssql' ? 'select top 1 id from t where id > 0 order by id desc' : 'select id from t where id > 0 order by id desc limit 1';
       const { steps } = planSteps(c.driver, await s.planJson!(sql), sql);
       expect(steps[0]).toMatchObject({ kind: 'scan', title: 'Read t' });
       // SQLite walks the primary key backwards (no sort); DuckDB folds it into Top N.

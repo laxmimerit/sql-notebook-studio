@@ -492,6 +492,7 @@ function mssqlText(s: string | undefined): string | undefined {
   for (let i = 0; i < 3 && /\bExpr\d+\b|@\d/.test(s); i++) s = s.replace(/\[?(\bExpr\d+\b|@\d+\b)\]?/g, (w, e: string) => mssqlExprs.get(e) ?? w);
   return s
     .replace(/(?<![\w\]])\((-?\d+(?:\.\d+)?)\)/g, '$1')
+    .replace(/(?<![\w'])N'/g, "'")
     .replace(/CONVERT_IMPLICIT\([^,()]+(?:\(\d+(?:,\d+)?\))?,(.*?),\d+\)/g, '$1')
     .replace(/(?:\[[^\]]+\]\.)+\[[^\]]+\] as (\[[^\]]+\]\.\[[^\]]+\])/g, '$1')
     .replace(/(?:\[[^\]]+\]\.){2,}(\[[^\]]+\]\.\[[^\]]+\])/g, '$1')
@@ -550,10 +551,18 @@ function mssqlRelOp(r: XmlEl): PNode {
     n.kind = 'write';
     n.op = /Insert/i.test(physical) ? 'Insert' : /Update/i.test(physical) ? 'Update' : /Delete/i.test(physical) ? 'Delete' : 'Merge';
     n.table = mssqlText(obj.attrs.Table);
+    // A clustered index UPDATE or DELETE can find its rows itself, with no read below it.
+    const cond = seekCond(op);
+    if (!children.length && (cond || predicate)) {
+      const idx = mssqlText(obj.attrs.Index);
+      n.children = [{ kind: 'scan', op: 'Seek', table: n.table, alias: n.table, index: cond ? (/^PK_/i.test(idx ?? '') ? 'primary key' : idx) : undefined, cond, filter: predicate, rows: n.rows, children: [] }];
+    }
   } else if (/Scan|Seek|Lookup/i.test(physical) && obj) {
     n.kind = 'scan';
     n.table = mssqlText(obj.attrs.Table);
     n.alias = mssqlText(obj.attrs.Alias) ?? n.table;
+    // A key lookup is written as a Clustered Index Seek with Lookup="1".
+    if (/^(1|true)$/i.test(op.attrs.Lookup ?? '')) n.op = 'Key Lookup';
     if (!/Table Scan|Heap/i.test(physical)) {
       const idx = mssqlText(obj.attrs.Index);
       n.index = /Clustered/i.test(physical) && /^PK_/i.test(idx ?? '') ? 'primary key' : idx;
@@ -580,6 +589,12 @@ function mssqlRelOp(r: XmlEl): PNode {
     // Hash Match lists its build input first, which is the order it runs in.
   } else if (/Aggregate/i.test(logical) || physical === 'Stream Aggregate') {
     n.kind = 'group';
+    // Grouping with no totals only removes duplicates (UNION, DISTINCT).
+    const dv = xFind(op, 'DefinedValues');
+    if (xFind(op, 'GroupBy') && (!dv || !dv.children.length)) {
+      n.kind = 'distinct';
+      return n;
+    }
     const g = xFind(op, 'GroupBy') ?? xFind(op, 'HashKeysBuild');
     n.keys = g ? xAll(g, 'ColumnReference').map(mssqlColumn).filter(Boolean).join(', ') || undefined : undefined;
   } else if (/Distinct/i.test(logical)) n.kind = 'distinct';
@@ -589,7 +604,11 @@ function mssqlRelOp(r: XmlEl): PNode {
     n.top = top;
     const ob = xFind(op, 'OrderBy');
     n.keys = ob ? ob.children.map((c) => `${mssqlColumn(xFind(c, 'ColumnReference')) ?? ''}${c.attrs.Ascending === 'false' ? ' DESC' : ''}`).join(', ') || undefined : undefined;
-  } else if (physical === 'Top') n.kind = 'limit';
+  } else if (physical === 'Top') {
+    n.kind = 'limit';
+    const t = Number(scalar(xFind(op, 'TopExpression')));
+    if (Number.isFinite(t)) n.top = t;
+  }
   else if (physical === 'Filter') {
     n.kind = 'filter';
     n.filter = predicate;
@@ -1104,9 +1123,12 @@ export function buildSteps(root: PNode, sql: string, driver = ''): BuildResult {
       const b = blockAt(sh, positions);
       const cs = pick(b, 'LIMIT', 'FETCH', 'OFFSET');
       add(clauseLines(sh, cs));
-      const k = limitIn(sh, b) ?? limitIn(sh, top);
+      // SQL Server's TOP is part of the SELECT clause.
+      const sel = clausesOf(b, 'SELECT');
+      if (!cs.length && sel.some((c) => /^select\s+(?:all\s+|distinct\s+)?top\b/i.test(sh.masked.slice(c.start, c.end)))) add(clauseLines(sh, sel).slice(0, 1));
+      const k = limitIn(sh, b) ?? limitIn(sh, top) ?? n.top;
       title = k !== undefined ? `Keep first ${k}` : 'Keep first rows';
-      detail = `Stops once it has ${k ?? 'enough'} rows${cs.some((c) => c.kw === 'OFFSET') ? ', after skipping the OFFSET rows' : ''}.`;
+      detail = `Stops once it has ${k ?? 'enough'} ${k === 1 ? 'row' : 'rows'}${cs.some((c) => c.kw === 'OFFSET') ? ', after skipping the OFFSET rows' : ''}.`;
     } else if (n.kind === 'distinct') {
       const b = blockAt(sh, positions);
       add(clauseLines(sh, clausesOf(b, 'SELECT')).slice(0, 1));
@@ -1359,13 +1381,35 @@ function mysqlAddGroup(root: PNode, sql: string): PNode {
   return root;
 }
 
+/**
+ * SQL Server plans a WHERE that can never be true as an empty Constant Scan. When the
+ * statement reads a table but the plan reads none, say that no row can match.
+ */
+function mssqlEmpty(root: PNode, sql: string): PNode {
+  const all: PNode[] = [];
+  const walk = (n: PNode) => {
+    all.push(n);
+    n.children.forEach(walk);
+  };
+  walk(root);
+  if (all.some((n) => n.kind === 'scan' || n.kind === 'write') || !shape(sql).refs.length || /\bvalues\b/i.test(mask(sql))) return root;
+  for (const n of all) {
+    if (n.kind === 'values' && !n.children.length) {
+      n.kind = 'other';
+      n.op = 'EMPTY_RESULT';
+      n.rows = 0;
+    }
+  }
+  return root;
+}
+
 export function planSteps(driver: string, raw: unknown, sql: string): BuildResult {
   const tableOf = (a: string) => shape(sql).refs.find((r) => r.alias?.toLowerCase() === a.toLowerCase())?.name;
   const root =
     driver === 'postgres' ? fromPostgres(raw)
     : driver === 'duckdb' ? fromDuckdb(raw)
     : driver === 'mysql' ? mysqlAddGroup(fromMysql(raw, mysqlFirstTable(sql)), sql)
-    : driver === 'mssql' ? fromMssql(raw)
+    : driver === 'mssql' ? mssqlEmpty(fromMssql(raw), sql)
     : fromSqlite(raw as SqliteRow[], tableOf);
   return buildSteps(root, sql, driver);
 }

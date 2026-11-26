@@ -303,12 +303,30 @@ describe('MySQL plans', () => {
   });
 });
 
-// Estimated plans (SET SHOWPLAN_XML ON) in SQL Server 2022's showplan schema.
+// Estimated plans (SET SHOWPLAN_XML ON) captured from SQL Server 2022 ('hash' and 'seek'
+// are written in the same schema to cover a hash aggregate and a Key Lookup operator).
 describe('SQL Server plans', () => {
   const ms = (c: Case) => summary('mssql', c.plan, c.sql);
+  const detail = (c: Case, i: number) => planSteps('mssql', c.plan, c.sql).steps[i].detail;
 
-  it('demo: hash join, hash aggregate with HAVING, then TOP N sort', () => {
+  it('demo: join, sort for grouping, GROUP BY with its HAVING, then TOP N', () => {
     expect(ms(F.mssql.demo)).toEqual([
+      'scan:Read orders@2,4',
+      'scan:Read customers@3',
+      'join:Join orders + customers@3',
+      'sort:Sort for grouping@5',
+      'group:Group by c.name@5,6',
+      'select:Pick columns@1',
+      'topn:Top 3 by n desc@7',
+    ]);
+    // N'paid' and Expr names read as written.
+    expect(detail(F.mssql.demo, 0)).toBe("Reads every row of orders, keeping rows where o.status='paid'.");
+    expect(detail(F.mssql.demo, 4)).toMatch(/keeps groups where Count\(\*\)>=2\./);
+    expect(detail(F.mssql.demo, 5)).toBe('Builds each output row: c.name, count(*) as n.');
+  });
+
+  it('hash join and hash aggregate', () => {
+    expect(ms(F.mssql.hash)).toEqual([
       'scan:Read customers@3',
       'scan:Read orders@2,4',
       'join:Join customers + orders@3',
@@ -316,24 +334,34 @@ describe('SQL Server plans', () => {
       'select:Pick columns@1',
       'topn:Top 3 by n desc@7',
     ]);
-    const { steps } = planSteps('mssql', F.mssql.demo.plan, F.mssql.demo.sql);
-    expect(steps.map((s) => s.rows)).toEqual([4, 6, 6, 4, 4, 3]);
-    expect(steps[1].detail).toBe("Reads every row of orders, keeping rows where o.status='paid'.");
-    expect(steps[2].detail).toMatch(/c\.id = o\.customer_id/);
-    // Expr1002 is shown as what it stands for.
-    expect(steps[3].detail).toMatch(/keeps groups where COUNT\(\*\)>=2\./);
-    expect(steps[4].detail).toBe('Builds each output row: c.name, count(*) as n.');
+    expect(planSteps('mssql', F.mssql.hash.plan, F.mssql.hash.sql).steps.map((s) => s.rows)).toEqual([4, 6, 6, 4, 4, 3]);
+    expect(detail(F.mssql.hash, 3)).toMatch(/keeps groups where COUNT\(\*\)>=2\./);
   });
 
   it('an index seek plus its key lookup is one read', () => {
-    const { steps } = planSteps('mssql', F.mssql.seek.plan, F.mssql.seek.sql);
-    expect(steps.map((s) => s.kind)).toEqual(['scan', 'select']);
-    expect(steps[0].detail).toBe('Uses index ix_cust to find the rows where o.customer_id = 3.');
+    expect(ms(F.mssql.seek).map((s) => s.split('@')[0])).toEqual(['scan:Read orders', 'select:Pick columns']);
+    expect(detail(F.mssql.seek, 0)).toBe('Uses index ix_cust to find the rows where o.customer_id = 3.');
+    // The live plan writes its key lookup as a Clustered Index Seek with Lookup="1".
+    expect(ms(F.mssql.cte)).toEqual([
+      'scan:Read orders@1',
+      'group:Group by customer_id@1',
+      'scan:Read customers@2',
+      'join:Join big + customers@2',
+      'select:Pick columns@2',
+      'sort:Sort by b.total desc@2',
+    ]);
   });
 
-  it('update: seeks by primary key, with the parameter value shown', () => {
+  it('update: the write finds its own rows by primary key, with the parameter value shown', () => {
     expect(ms(F.mssql.update)).toEqual(['scan:Read orders@1', 'write:Update orders@1']);
-    expect(planSteps('mssql', F.mssql.update.plan, F.mssql.update.sql).steps[0].detail).toBe('Uses the primary key to find the rows where orders.id = 1.');
+    expect(detail(F.mssql.update, 0)).toBe('Uses the primary key to find the rows where orders.id = 1.');
+  });
+
+  it('TOP, UNION and an impossible WHERE', () => {
+    expect(ms(F.mssql.top)).toEqual(['scan:Read orders@1', 'select:Pick columns@1', 'limit:Keep first 1@1']);
+    expect(detail(F.mssql.top, 2)).toBe('Stops once it has 1 row.');
+    expect(ms(F.mssql.union).map((s) => s.split('@')[0])).toEqual(['scan:Read customers', 'scan:Read orders', 'distinct:Remove duplicates', 'combine:Combine results']);
+    expect(ms(F.mssql.empty)[0]).toBe('other:Skip: no row can match@');
   });
 });
 

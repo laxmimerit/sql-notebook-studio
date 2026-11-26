@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Safer write checks.** "UPDATE/DELETE without WHERE" now looks only at the statement's own WHERE. Before, a WHERE inside a subquery, a string, a quoted name or a comment hid the warning, so `UPDATE users SET plan_id = (SELECT id FROM plans WHERE name = 'free')` changed every row with no confirmation on a Production connection.
+- A write inside a CTE (`WITH gone AS (DELETE FROM orders RETURNING *) SELECT ...`) now counts as a write: read-only connections refuse it, and a DELETE or UPDATE there without WHERE asks first.
+- Each statement of a SQL Server batch is checked on its own, when they are separated by `;`.
+- The confirmation for `DROP TABLE IF EXISTS users` names the table (`DROP TABLE users`), not `DROP TABLE IF`.
+
 ## 1.2.1
 
 - **Shift+Enter** keeps the cell you ran selected instead of moving to the next cell.

@@ -171,7 +171,7 @@ function splitBatches(src: string): Statement[] {
   return out;
 }
 
-function skipQuoted(src: string, i: number, quote: string, backslash: boolean): number {
+export function skipQuoted(src: string, i: number, quote: string, backslash: boolean): number {
   let j = i + 1;
   while (j < src.length) {
     const c = src[j];

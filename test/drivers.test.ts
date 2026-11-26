@@ -147,6 +147,18 @@ for (const c of cases) {
       // SQLite walks the primary key backwards (no sort); DuckDB folds it into Top N.
       expect(steps.at(-1)!.title).toMatch(/^(keep first 1|top 1 by id desc)$/i);
     });
+    it.runIf(c.driver === 'mysql' || c.driver === 'mssql')('plans an UPDATE without running it', async () => {
+      const sql = "update t set name = 'zz' where id = 1";
+      // MySQL 9.x has no tree for UPDATE: the JSON fallback must put the session setting back.
+      const version = async () =>
+        c.driver === 'mysql' ? String((await run(s, 'select @@explain_json_format_version', c.driver).catch(() => [{ rows: [['none']] }] as any))[0].rows[0][0]) : '';
+      const before = await version();
+      const { steps } = planSteps(c.driver, await s.planJson!(sql), sql);
+      expect(steps.map((x) => x.kind)).toEqual(['scan', 'write']);
+      expect(await version()).toBe(before);
+      const [r] = await run(s, 'select name from t where id = 1', c.driver);
+      expect(r.rows[0][0]).toBe('a');
+    });
     it('can be stopped and keeps working', async () => {
       const t0 = Date.now();
       const p = run(s, c.slow, c.driver).then(

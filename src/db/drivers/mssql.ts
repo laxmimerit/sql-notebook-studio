@@ -10,7 +10,10 @@ class MssqlSession implements Session {
   private current?: sql.Request;
   private cancelled = false;
 
-  constructor(private pool: sql.ConnectionPool) {}
+  constructor(
+    private pool: sql.ConnectionPool,
+    private config: sql.config,
+  ) {}
 
   private async q<T = any>(text: string, params: Record<string, string> = {}): Promise<T[]> {
     const r = this.pool.request();
@@ -155,6 +158,36 @@ class MssqlSession implements Session {
   async explain() {
     return undefined;
   }
+
+  /**
+   * The estimated plan as showplan XML, for Query Flow; the query does not run.
+   * SET SHOWPLAN_XML changes every later batch on its connection, so it runs on a
+   * connection of its own (in the session's current database), never the one the
+   * cells and the schema explorer share.
+   */
+  async planJson(text: string): Promise<unknown> {
+    const db = (await this.q<{ d: string }>('select db_name() as d'))[0]?.d;
+    const pool = new sql.ConnectionPool({ ...this.config, database: db ?? this.config.database, pool: { max: 1, min: 0 } });
+    pool.on('error', () => undefined);
+    await pool.connect();
+    // A transaction keeps both batches on one connection (SET SHOWPLAN_XML must be alone
+    // in its batch), and it is always rolled back: even if the plan setting were lost,
+    // nothing the statement did would be kept.
+    const tx = new sql.Transaction(pool);
+    try {
+      await tx.begin();
+      await new sql.Request(tx).batch('SET SHOWPLAN_XML ON');
+      const r = await new sql.Request(tx).batch(text);
+      const sets = (r.recordsets as unknown as Record<string, unknown>[][]) ?? [];
+      const xml = sets.flat().map((row) => Object.values(row)[0]).filter((v): v is string => typeof v === 'string' && v.includes('<ShowPlanXML'));
+      if (!xml.length) throw new Error('SQL Server returned no plan for this statement.');
+      return xml[0];
+    } finally {
+      await new sql.Request(tx).batch('SET SHOWPLAN_XML OFF').catch(() => undefined);
+      await tx.rollback().catch(() => undefined);
+      await pool.close().catch(() => undefined);
+    }
+  }
 }
 
 export async function open(conn: ResolvedConnection): Promise<Session> {
@@ -186,7 +219,7 @@ export async function open(conn: ResolvedConnection): Promise<Session> {
   const pool = new sql.ConnectionPool(config);
   pool.on('error', () => undefined);
   await pool.connect();
-  return new MssqlSession(pool);
+  return new MssqlSession(pool, config);
 }
 
 /** "[db]." for a three-part name in another database, or "" for the current one. */

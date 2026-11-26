@@ -145,6 +145,38 @@ class MysqlSession implements Session {
     return r.map((x) => ({ name: x.n, type: x.t, pk: x.k === 'PRI', nullable: x.nl === 'YES' }));
   }
 
+  /**
+   * The plan for Query Flow, never running the query: the tree (MySQL 8.0.16+), else
+   * classic JSON (MariaDB, older MySQL, and UPDATE/DELETE, which have no tree).
+   */
+  async planJson(sql: string): Promise<unknown> {
+    try {
+      const r = await this.q<Record<string, unknown>>(`explain format=tree ${sql}`);
+      const text = r.map((row) => Object.values(row).map(String).join('\n')).join('\n');
+      if (text.trim() && !/not executable by iterator executor/i.test(text)) return { format: 'tree', text };
+    } catch {
+      // MariaDB and MySQL before 8.0.16 have no tree format.
+    }
+    // MySQL 8.3+ may default to JSON version 2; the reader wants version 1 (MariaDB has no such setting).
+    let restore: number | undefined;
+    try {
+      const v = Number((await this.q<{ v: unknown }>('select @@explain_json_format_version as v'))[0]?.v);
+      if (v !== 1) {
+        await this.q('set explain_json_format_version = 1');
+        restore = v;
+      }
+    } catch {
+      // No such variable.
+    }
+    try {
+      const r = await this.q<Record<string, unknown>>(`explain format=json ${sql}`);
+      const v = Object.values(r[0] ?? {})[0];
+      return { format: 'json', json: typeof v === 'string' ? JSON.parse(v) : v };
+    } finally {
+      if (restore !== undefined && Number.isFinite(restore)) await this.q(`set explain_json_format_version = ${restore}`).catch(() => undefined);
+    }
+  }
+
   async explain(sql: string) {
     try {
       const r = await this.q<Record<string, string>>(`explain format=tree ${sql}`);

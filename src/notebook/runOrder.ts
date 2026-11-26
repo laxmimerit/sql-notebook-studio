@@ -67,7 +67,7 @@ export class RunOrder {
     }
 
     if (!PLAN_DRIVERS.has(conn.driver)) {
-      payload.error = `Query Flow is not available for ${DRIVERS[conn.driver]?.label ?? conn.driver} yet. It works with PostgreSQL, SQLite and DuckDB.`;
+      payload.error = `Query Flow is not available for ${DRIVERS[conn.driver]?.label ?? conn.driver} yet. It works with MySQL, MariaDB, PostgreSQL, SQL Server, SQLite and DuckDB.`;
     } else if (!stmt) {
       payload.error = 'Nothing to show: Query Flow works for SELECT, WITH, INSERT, UPDATE and DELETE statements.';
     } else {

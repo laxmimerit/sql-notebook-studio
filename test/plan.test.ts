@@ -4,7 +4,12 @@ import { pickStatement } from '../src/notebook/runOrder';
 import { splitStatements } from '../src/db/splitter';
 import fx from './fixtures/plans.json';
 
-type Fx = Record<'sqlite' | 'duckdb', Record<string, unknown>> & { sql: Record<string, string> };
+type Case = { sql: string; plan: unknown };
+type Fx = Record<'sqlite' | 'duckdb', Record<string, unknown>> & {
+  sql: Record<string, string>;
+  mysql: { tree: Record<string, Case>; json: Record<string, Case> };
+  mssql: Record<string, Case>;
+};
 const F = fx as unknown as Fx;
 
 /** "kind:title@lines(1-based)" per step, which is what the user sees. */
@@ -211,6 +216,127 @@ describe('PostgreSQL plans', () => {
   });
 });
 
+// Plans captured from MySQL 9.7 (tree, and classic JSON with explain_json_format_version = 1).
+describe('MySQL plans', () => {
+  const my = (c: Case) => summary('mysql', c.plan, c.sql);
+
+  it('tree: WHERE, join, then GROUP BY with its HAVING, ORDER BY and LIMIT, in run order', () => {
+    expect(my(F.mysql.tree.demo)).toEqual([
+      'scan:Read orders@2',
+      'filter:Keep matching rows@4',
+      'scan:Read customers@3',
+      'join:Join orders + customers@3',
+      'group:Group by c.name@5,6',
+      'select:Pick columns@1',
+      'sort:Sort by n desc@7',
+      'limit:Keep first 3@8',
+    ]);
+    const { steps } = planSteps('mysql', F.mysql.tree.demo.plan, F.mysql.tree.demo.sql);
+    // No schema names, backticks or count(0) in the text.
+    expect(steps[1].detail).toBe("Keeps rows where (o.status = 'paid') and (o.customer_id is not null).");
+    expect(steps[4].detail).toMatch(/keeps groups where count\(\*\) >= 2/);
+    expect(steps[2].detail).toMatch(/primary key/);
+    expect(steps[0].rows).toBe(4);
+  });
+
+  it('tree: the union temporary table is hidden', () => {
+    expect(my(F.mysql.tree.union)).toEqual(['scan:Read customers@1', 'scan:Read orders@1', 'combine:Combine results@1']);
+  });
+
+  it('tree: IN (subquery) reads the subquery table first', () => {
+    expect(my(F.mysql.tree.semi)).toEqual([
+      'scan:Read customers@2',
+      'filter:Keep matching rows@2',
+      'scan:Read orders@1,2',
+      'join:Join customers + orders@2',
+      'select:Pick columns@1',
+    ]);
+  });
+
+  it('tree: INSERT ... VALUES, COUNT(*) and an impossible WHERE', () => {
+    expect(my(F.mysql.tree.insert)).toEqual(['values:Read VALUES@1', 'write:Insert into customers@1']);
+    expect(my(F.mysql.tree.count)).toEqual(['scan:Read orders@1', 'group:Total all rows@1', 'select:Pick columns@1']);
+    expect(my(F.mysql.tree.empty)[0]).toBe('other:Skip: no row can match@');
+  });
+
+  it('json: the same query reads the same, with LIMIT added from the SQL', () => {
+    const { steps } = planSteps('mysql', { format: 'json', json: F.mysql.json.demo.plan }, F.mysql.json.demo.sql);
+    expect(steps.map((s) => `${s.kind}:${s.title}`)).toEqual([
+      'scan:Read orders',
+      'scan:Read customers',
+      'join:Join orders + customers',
+      'group:Group by c.name',
+      'select:Pick columns',
+      'sort:Sort by n desc',
+      'limit:Keep first 3',
+    ]);
+    expect(steps.at(-1)!.inferred).toBe(true);
+  });
+
+  it('json: UPDATE and UNION (MySQL 9.7 has no tree for UPDATE)', () => {
+    expect(my(F.mysql.json.update)).toEqual(['scan:Read orders@1', 'write:Update orders@1']);
+    expect(my(F.mysql.json.union).map((s) => s.split('@')[0])).toEqual(['scan:Read customers', 'scan:Read orders', 'combine:Combine results']);
+  });
+
+  it('accepts tree text or JSON text as a string', () => {
+    expect(planSteps('mysql', F.mysql.tree.union.plan, F.mysql.tree.union.sql).steps).toHaveLength(3);
+    expect(planSteps('mysql', JSON.stringify(F.mysql.json.update.plan), F.mysql.json.update.sql).steps).toHaveLength(2);
+  });
+
+  it("MariaDB's having_condition becomes the group's HAVING", () => {
+    const json = {
+      query_block: {
+        select_id: 1,
+        having_condition: 'count(0) >= 2',
+        filesort: { sort_key: 'count(0) desc', temporary_table: { table: { table_name: 'orders', access_type: 'ALL', rows: 8 } } },
+      },
+    };
+    const sql = 'select customer_id, count(*) n\nfrom orders\ngroup by customer_id\nhaving count(*) >= 2\norder by n desc';
+    const { steps } = planSteps('mysql', { format: 'json', json }, sql);
+    expect(summary('mysql', { format: 'json', json }, sql)).toEqual([
+      'scan:Read orders@2',
+      'group:Group by customer_id@3,4',
+      'select:Pick columns@1',
+      'sort:Sort by n desc@5',
+    ]);
+    expect(steps[1].detail).toMatch(/keeps groups where count\(\*\) >= 2/);
+  });
+});
+
+// Estimated plans (SET SHOWPLAN_XML ON) in SQL Server 2022's showplan schema.
+describe('SQL Server plans', () => {
+  const ms = (c: Case) => summary('mssql', c.plan, c.sql);
+
+  it('demo: hash join, hash aggregate with HAVING, then TOP N sort', () => {
+    expect(ms(F.mssql.demo)).toEqual([
+      'scan:Read customers@3',
+      'scan:Read orders@2,4',
+      'join:Join customers + orders@3',
+      'group:Group by c.name@5,6',
+      'select:Pick columns@1',
+      'topn:Top 3 by n desc@7',
+    ]);
+    const { steps } = planSteps('mssql', F.mssql.demo.plan, F.mssql.demo.sql);
+    expect(steps.map((s) => s.rows)).toEqual([4, 6, 6, 4, 4, 3]);
+    expect(steps[1].detail).toBe("Reads every row of orders, keeping rows where o.status='paid'.");
+    expect(steps[2].detail).toMatch(/c\.id = o\.customer_id/);
+    // Expr1002 is shown as what it stands for.
+    expect(steps[3].detail).toMatch(/keeps groups where COUNT\(\*\)>=2\./);
+    expect(steps[4].detail).toBe('Builds each output row: c.name, count(*) as n.');
+  });
+
+  it('an index seek plus its key lookup is one read', () => {
+    const { steps } = planSteps('mssql', F.mssql.seek.plan, F.mssql.seek.sql);
+    expect(steps.map((s) => s.kind)).toEqual(['scan', 'select']);
+    expect(steps[0].detail).toBe('Uses index ix_cust to find the rows where o.customer_id = 3.');
+  });
+
+  it('update: seeks by primary key, with the parameter value shown', () => {
+    expect(ms(F.mssql.update)).toEqual(['scan:Read orders@1', 'write:Update orders@1']);
+    expect(planSteps('mssql', F.mssql.update.plan, F.mssql.update.sql).steps[0].detail).toBe('Uses the primary key to find the rows where orders.id = 1.');
+  });
+});
+
 describe('Reading the SQL', () => {
   it('mask blanks strings and comments but keeps length and newlines', () => {
     const sql = "select 'a -- b' -- where\nfrom t /* join */ where x = $$ order by $$";
@@ -232,8 +358,8 @@ describe('Reading the SQL', () => {
     expect(columnsIn('((count(*)) > 5) AND (city IS NOT NULL)')).toEqual(['city']);
   });
 
-  it('only PostgreSQL, SQLite and DuckDB are planned', () => {
-    expect([...PLAN_DRIVERS].sort()).toEqual(['duckdb', 'postgres', 'sqlite']);
+  it('every database is planned', () => {
+    expect([...PLAN_DRIVERS].sort()).toEqual(['duckdb', 'mssql', 'mysql', 'postgres', 'sqlite']);
   });
 });
 

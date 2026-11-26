@@ -227,6 +227,412 @@ export function fromSqlite(rows: SqliteRow[], tableOf: (alias: string) => string
   return chain(0) ?? { kind: 'other', op: 'No plan', children: [] };
 }
 
+// ---------- MySQL and MariaDB ----------
+
+/** What the MySQL driver's planJson returns: the tree text (MySQL 8.0.16+), else classic JSON (MariaDB, older MySQL, writes). */
+export type MysqlPlan = { format: 'tree'; text: string } | { format: 'json'; json: unknown };
+
+interface TreeLine {
+  op: string;
+  rows?: number;
+  children: TreeLine[];
+}
+
+/** `EXPLAIN FORMAT=TREE` text: one `-> operation  (cost=... rows=...)` per line, children indented under it. */
+function treeLines(text: string): TreeLine[] {
+  const roots: TreeLine[] = [];
+  const stack: { indent: number; node: TreeLine }[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const m = /^(\s*)->\s?(.*)$/.exec(raw);
+    if (!m) continue;
+    let op = m[2].trim();
+    let rows: number | undefined;
+    // Estimates come last, after two spaces: "Filter: (c.id > 2)  (cost=0.861 rows=3)".
+    const est = /\s{2,}\((cost=[^)]*)\)\s*$/.exec(op) ?? /\s+\((rows=[^)]*)\)\s*$/.exec(op);
+    if (est) {
+      rows = num(/rows=([\d.e+-]+)/.exec(est[1])?.[1]);
+      op = op.slice(0, est.index).trim();
+    }
+    const node: TreeLine = { op, rows, children: [] };
+    const indent = m[1].length;
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    if (stack.length) stack[stack.length - 1].node.children.push(node);
+    else roots.push(node);
+    stack.push({ indent, node });
+  }
+  return roots;
+}
+
+const bare = (s: string) => s.replace(/`/g, '');
+
+/** A MySQL index name, as the step text uses it. */
+function mysqlIndex(key: string | undefined): string | undefined {
+  if (!key || /^<auto_key\d*>$/i.test(key)) return undefined;
+  return /^primary$/i.test(key) ? 'primary key' : bare(key);
+}
+
+function mysqlTreeNode(t: TreeLine, firstTable?: string): PNode {
+  const op = t.op;
+  const children = t.children.map((c) => mysqlTreeNode(c, firstTable));
+  const n: PNode = { kind: 'other', op, rows: t.rows, children };
+  let m: RegExpExecArray | null;
+  if ((m = /^([A-Za-z -]*?(?:scan|lookup|search)(?: \(Multi-Range Read\))?) on (<[^>]+>|\S+)(?: using (\S+))?(?: over \((.*)\)| \((.*)\))?$/i.exec(op))) {
+    const [, how, name, index, range, cond] = m;
+    if (name.startsWith('<')) n.kind = 'hidden'; // <temporary>, <subquery2>, <union temporary>
+    else {
+      n.kind = 'scan';
+      n.table = n.alias = bare(name);
+      if (!/^table scan$/i.test(how.trim())) n.index = mysqlIndex(index) ?? (index ? 'index' : undefined);
+      n.cond = mysqlCond(range ?? cond);
+    }
+  } else if ((m = /^Filter: (.*)$/i.exec(op))) {
+    n.kind = 'filter';
+    n.filter = mysqlCond(m[1]);
+    const having = foldHaving(children, n.filter);
+    if (having) return having;
+  } else if (/\b(?:join|semijoin|antijoin)\b/i.test(op)) {
+    n.kind = 'join';
+    n.joinType = /anti/i.test(op) ? 'Anti' : /semi/i.test(op) ? 'Semi' : /\bleft\b/i.test(op) ? 'Left' : /\bfull\b/i.test(op) ? 'Full' : 'Inner';
+    const c = /join \((.*)\)$/i.exec(op);
+    if (c) n.join = mysqlCond(c[1]);
+    // A hash join builds its table from the "Hash" input first, then probes it with the other.
+    const h = children.findIndex((x) => x.op === 'Hash');
+    if (h > 0) n.children = [children[h], ...children.filter((_, i) => i !== h)];
+  } else if ((m = /^Count rows in (\S+)$/i.exec(op))) {
+    n.kind = 'group';
+    n.children = [{ kind: 'scan', op: 'Table scan', table: bare(m[1]), alias: bare(m[1]), children: [] }];
+  } else if (/^(?:Group aggregate|Aggregate|Stream aggregate)\b/i.test(op)) n.kind = 'group';
+  else if ((m = /^Sort with duplicate removal/i.exec(op))) n.kind = 'distinct';
+  else if ((m = /^Sort: (.*?)(?:, limit input to (\d+) row\(s\) per chunk)?$/i.exec(op))) {
+    n.kind = m[2] ? 'topn' : 'sort';
+    n.keys = mysqlCond(m[1]);
+    if (m[2]) n.top = Number(m[2]);
+  } else if (/^Sort row IDs/i.test(op)) n.kind = 'sort';
+  else if (/^Limit\b/i.test(op)) n.kind = 'limit';
+  else if (/^(?:Union|Intersect|Except)\b.*materialize|^Append\b/i.test(op)) n.kind = 'combine';
+  else if (/^(?:Temporary table with deduplication|Remove duplicate)/i.test(op)) n.kind = 'distinct';
+  else if (/^Window\b/i.test(op)) n.kind = 'window';
+  else if (/^Zero rows\b/i.test(op)) n.op = 'EMPTY_RESULT';
+  else if ((m = /^Constant row from (\S+)$/i.exec(op))) {
+    n.kind = 'scan';
+    n.table = n.alias = bare(m[1]);
+    n.index = 'primary key';
+  } else if (/^Rows fetched before execution$/i.test(op)) {
+    // A row found by its primary or unique key while planning.
+    if (firstTable) {
+      n.kind = 'scan';
+      n.table = firstTable;
+      n.index = 'primary key';
+    } else n.kind = 'values';
+  } else if ((m = /^(Insert into|Replace into|Update|Delete from) (\S+)/i.exec(op))) {
+    n.kind = 'write';
+    n.op = /^delete/i.test(m[1]) ? 'Delete' : /^update/i.test(m[1]) ? 'Update' : 'Insert';
+    n.table = bare(m[2]);
+  } else if (/^(?:Hash|Stream results|Materialize|Temporary table|Select #\d|Buffer result|Covering index skip scan for deduplication)\b/i.test(op)) n.kind = 'hidden';
+  return n;
+}
+
+/**
+ * A filter right on top of an aggregate (through hidden nodes) is the HAVING: it goes on
+ * the group step, which then points at the HAVING line. Returns the node to use instead.
+ */
+function foldHaving(children: PNode[], filter: string | undefined): PNode | undefined {
+  let g = children[0];
+  while (g && g.kind === 'hidden' && g.children.length === 1) g = g.children[0];
+  if (children.length !== 1 || g?.kind !== 'group' || g.filter || !filter) return undefined;
+  g.filter = filter;
+  return children[0];
+}
+
+/** Strips schema names and backticks from a MySQL condition: `shop`.`c`.`id` > 2 gives c.id > 2. */
+function mysqlCond(c: unknown): string | undefined {
+  if (typeof c !== 'string' || !c) return undefined;
+  // MySQL prints COUNT(*) as count(0).
+  return c.replace(/`[^`]+`\.(`[^`]+`\.`[^`]+`)/g, '$1').replace(/`/g, '').replace(/\bcount\(0\)/gi, 'count(*)');
+}
+
+/** Classic `EXPLAIN FORMAT=JSON` (MySQL 5.6+, JSON format version 1, and MariaDB). */
+function mysqlJsonNode(o: any, firstTable?: string): PNode | undefined {
+  if (!o || typeof o !== 'object') return undefined;
+  if (o.query_block) return mysqlJsonNode(o.query_block, firstTable);
+  if (typeof o.message === 'string' && !o.table && !o.nested_loop) {
+    if (/impossible/i.test(o.message)) return { kind: 'other', op: 'EMPTY_RESULT', children: [] };
+    return firstTable && /const|before execution|optimized away/i.test(o.message) ? { kind: 'scan', op: o.message, table: firstTable, index: 'primary key', children: [] } : { kind: 'values', op: o.message, children: [] };
+  }
+  const wrap = (kind: PNode['kind'], op: string, inner: PNode | undefined, extra: Partial<PNode> = {}): PNode | undefined =>
+    inner ? { kind, op, children: [inner], rows: inner.rows, ...extra } : undefined;
+  // MariaDB writes HAVING next to the part it filters.
+  if (typeof o.having_condition === 'string') {
+    const { having_condition, ...rest } = o;
+    return wrap('filter', 'Having', mysqlJsonNode(rest, firstTable), { filter: mysqlCond(having_condition) });
+  }
+  if (o.union_result) {
+    const parts = ((o.union_result.query_specifications ?? []) as any[]).map((s) => mysqlJsonNode(s, firstTable)).filter((x): x is PNode => !!x);
+    return { kind: 'combine', op: 'Union', children: parts };
+  }
+  if (o.ordering_operation) {
+    const inner = mysqlJsonNode(o.ordering_operation, firstTable);
+    return o.ordering_operation.using_filesort === false ? inner : wrap('sort', 'Sort', inner);
+  }
+  if (o.filesort) return wrap('sort', 'Sort', mysqlJsonNode(o.filesort, firstTable), { keys: mysqlCond(o.filesort.sort_key) });
+  if (o.grouping_operation) return wrap('group', 'Aggregate', mysqlJsonNode(o.grouping_operation, firstTable));
+  if (o.duplicates_removal) return wrap('distinct', 'Remove duplicates', mysqlJsonNode(o.duplicates_removal, firstTable));
+  if (o.windowing) return wrap('window', 'Window', mysqlJsonNode(o.windowing, firstTable));
+  for (const k of ['temporary_table', 'buffer_result', 'read_sorted_file']) if (o[k]) return mysqlJsonNode(o[k], firstTable);
+  if (Array.isArray(o.nested_loop)) {
+    let cur: PNode | undefined;
+    for (const item of o.nested_loop as any[]) {
+      const t = item.table ?? item['block-nl-join']?.table ?? item['bka-join']?.table;
+      const next = t ? mysqlTable(t, firstTable) : mysqlJsonNode(item, firstTable);
+      if (!next) continue;
+      const cond = mysqlCond(item['block-nl-join']?.attached_condition ?? item['bka-join']?.attached_condition);
+      const right = cond ? { kind: 'filter' as const, op: 'Filter', filter: cond, children: [next] } : next;
+      cur = cur ? { kind: 'join', op: 'Nested loop', joinType: t?.not_exists ? 'Anti' : 'Inner', rows: num(t?.rows_produced_per_join ?? t?.rows), children: [cur, right] } : right;
+    }
+    return cur;
+  }
+  if (o.table) {
+    const t = mysqlTable(o.table, firstTable);
+    if (o.insert_from) t.children.push(...[mysqlJsonNode(o.insert_from, firstTable)].filter((x): x is PNode => !!x));
+    return t;
+  }
+  return undefined;
+}
+
+function mysqlTable(t: any, firstTable?: string): PNode {
+  const name = bare(String(t.table_name ?? ''));
+  const rows = num(t.rows_produced_per_join ?? t.rows);
+  const write = t.update ? 'Update' : t.delete ? 'Delete' : t.insert ? 'Insert' : undefined;
+  const ref = Array.isArray(t.ref) && Array.isArray(t.used_key_parts) && t.ref[0] !== 'const' ? `${t.used_key_parts[0]} = ${bare(String(t.ref[0])).split('.').slice(-2).join('.')}` : undefined;
+  const sub = t.materialized_from_subquery ? mysqlJsonNode(t.materialized_from_subquery, firstTable) : undefined;
+  const scan: PNode = name.startsWith('<')
+    ? { kind: 'hidden', op: name, rows, children: sub ? [sub] : [] }
+    : { kind: 'scan', op: String(t.access_type ?? 'scan'), table: name, alias: name, index: mysqlIndex(t.key), cond: ref, rows, children: sub ? [sub] : [] };
+  const cond = mysqlCond(t.attached_condition);
+  // The test MySQL writes for NOT EXISTS is internal bookkeeping, not the user's condition.
+  const filtered = cond && !/found_match|is_not_null_compl/.test(cond) ? (scan.kind === 'scan' ? ((scan.filter = cond), scan) : { kind: 'filter' as const, op: 'Filter', filter: cond, children: [scan] }) : scan;
+  if (write) return { kind: 'write', op: write, table: name, children: write === 'Insert' ? [] : [filtered] };
+  return filtered;
+}
+
+/** MySQL's plan: the tree text when the server gives one, else classic JSON. */
+export function fromMysql(raw: unknown, firstTable?: string): PNode {
+  // A bare string is tree text, or JSON when it starts with {; a bare object is classic JSON.
+  const p: MysqlPlan =
+    typeof raw === 'string' ? (raw.trimStart().startsWith('{') ? { format: 'json', json: JSON.parse(raw) } : { format: 'tree', text: raw })
+    : raw && typeof raw === 'object' && 'format' in raw ? (raw as MysqlPlan)
+    : { format: 'json', json: raw };
+  if (p.format === 'tree') {
+    const roots = treeLines(p.text).map((t) => mysqlTreeNode(t, firstTable));
+    return roots.length === 1 ? roots[0] : { kind: 'hidden', op: 'roots', children: roots };
+  }
+  const j = typeof p.json === 'string' ? JSON.parse(p.json) : p.json;
+  return mysqlJsonNode(j, firstTable) ?? { kind: 'other', op: 'No plan', children: [] };
+}
+
+// ---------- SQL Server ----------
+
+export interface XmlEl {
+  name: string;
+  attrs: Record<string, string>;
+  children: XmlEl[];
+}
+
+const ENTITIES: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+
+/** A small XML reader for showplan XML: elements and attributes only (text, comments and declarations are skipped). */
+export function parseXml(xml: string): XmlEl | undefined {
+  const root: XmlEl = { name: '#root', attrs: {}, children: [] };
+  const stack: XmlEl[] = [root];
+  const tag = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<(\/?)([A-Za-z_][\w:.-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
+  for (const m of xml.matchAll(tag)) {
+    if (!m[2]) continue;
+    if (m[1]) {
+      if (stack.length > 1) stack.pop();
+      continue;
+    }
+    const attrs: Record<string, string> = {};
+    for (const a of m[3].matchAll(/([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+      attrs[a[1]] = (a[2] ?? a[3]).replace(/&(#x[\da-f]+|#\d+|\w+);/gi, (w, e: string) =>
+        e[0] === '#' ? String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : ENTITIES[e] ?? w,
+      );
+    }
+    const el: XmlEl = { name: m[2].replace(/^\w+:/, ''), attrs, children: [] };
+    stack[stack.length - 1].children.push(el);
+    if (!m[4]) stack.push(el);
+  }
+  return root.children[0];
+}
+
+/** The first element named `name` under `el` (depth first), not looking inside nested RelOps. */
+function xFind(el: XmlEl, name: string): XmlEl | undefined {
+  for (const c of el.children) {
+    if (c.name === name) return c;
+    if (c.name === 'RelOp') continue;
+    const x = xFind(c, name);
+    if (x) return x;
+  }
+  return undefined;
+}
+
+function xAll(el: XmlEl, name: string, out: XmlEl[] = []): XmlEl[] {
+  for (const c of el.children) {
+    if (c.name === name) out.push(c);
+    else if (c.name !== 'RelOp') xAll(c, name, out);
+  }
+  return out;
+}
+
+/** What the plan's own names stand for: Expr1002 is COUNT(*). Set while one plan is read. */
+let mssqlExprs = new Map<string, string>();
+
+/** `[shop].[dbo].[orders].[status] as [o].[status]='paid'` gives `o.status='paid'`. */
+function mssqlText(s: string | undefined): string | undefined {
+  if (!s) return undefined;
+  for (let i = 0; i < 3 && /\bExpr\d+\b|@\d/.test(s); i++) s = s.replace(/\[?(\bExpr\d+\b|@\d+\b)\]?/g, (w, e: string) => mssqlExprs.get(e) ?? w);
+  return s
+    .replace(/(?<![\w\]])\((-?\d+(?:\.\d+)?)\)/g, '$1')
+    .replace(/CONVERT_IMPLICIT\([^,()]+(?:\(\d+(?:,\d+)?\))?,(.*?),\d+\)/g, '$1')
+    .replace(/(?:\[[^\]]+\]\.)+\[[^\]]+\] as (\[[^\]]+\]\.\[[^\]]+\])/g, '$1')
+    .replace(/(?:\[[^\]]+\]\.){2,}(\[[^\]]+\]\.\[[^\]]+\])/g, '$1')
+    .replace(/\[([^\]]+)\]/g, '$1');
+}
+
+function mssqlColumn(c: XmlEl | undefined): string | undefined {
+  if (!c) return undefined;
+  const t = c.attrs.Alias ?? c.attrs.Table;
+  return mssqlText(`${t ? `${t}.` : ''}${c.attrs.Column ?? ''}`);
+}
+
+function scalar(el: XmlEl | undefined): string | undefined {
+  return el ? mssqlText(xFind(el, 'ScalarOperator')?.attrs.ScalarString) : undefined;
+}
+
+const SEEK_OP: Record<string, string> = { EQ: '=', LT: '<', LE: '<=', GT: '>', GE: '>=', NE: '<>' };
+
+/** Seek predicates as a condition: `c.id > 2`. */
+function seekCond(op: XmlEl): string | undefined {
+  const parts: string[] = [];
+  for (const k of xAll(op, 'SeekKeys')) {
+    for (const side of k.children) {
+      const type = side.attrs.ScanType;
+      const cols = xAll(side, 'ColumnReference');
+      const range = xFind(side, 'RangeColumns');
+      const exprs = xFind(side, 'RangeExpressions');
+      const col = mssqlColumn(range ? xFind(range, 'ColumnReference') : cols[0]);
+      const val = exprs ? scalar(exprs) : undefined;
+      if (col && val && type) parts.push(`${col} ${SEEK_OP[type] ?? type} ${val}`);
+    }
+  }
+  return parts.length ? parts.join(' AND ') : undefined;
+}
+
+const MSSQL_HIDDEN = /^(Compute Scalar|Parallelism|Segment|Table Spool|Index Spool|Row Count Spool|Window Spool|Eager Spool|Lazy Spool|Bitmap|Assert|Split|Collapse|Adaptive Join)$/i;
+
+function mssqlRelOp(r: XmlEl): PNode {
+  const physical = r.attrs.PhysicalOp ?? '';
+  const logical = r.attrs.LogicalOp ?? '';
+  // The operator's own element (IndexScan, NestedLoops, Hash, ...) is the RelOp child after OutputList etc.
+  const op = r.children.find((c) => !['OutputList', 'Warnings', 'MemoryFractions', 'RunTimeInformation', 'RunTimePartitionSummary', 'InternalInfo'].includes(c.name)) ?? r;
+  const kids: XmlEl[] = [];
+  const collect = (el: XmlEl) => {
+    for (const c of el.children) {
+      if (c.name === 'RelOp') kids.push(c);
+      else collect(c);
+    }
+  };
+  collect(op);
+  const children = kids.map(mssqlRelOp);
+  const n: PNode = { kind: 'other', op: physical, rows: num(r.attrs.EstimateRows), children };
+  const obj = xFind(op, 'Object');
+  const predicate = scalar(op.children.find((c) => c.name === 'Predicate'));
+  if (/(Insert|Update|Delete|Merge)$/i.test(physical) && obj) {
+    n.kind = 'write';
+    n.op = /Insert/i.test(physical) ? 'Insert' : /Update/i.test(physical) ? 'Update' : /Delete/i.test(physical) ? 'Delete' : 'Merge';
+    n.table = mssqlText(obj.attrs.Table);
+  } else if (/Scan|Seek|Lookup/i.test(physical) && obj) {
+    n.kind = 'scan';
+    n.table = mssqlText(obj.attrs.Table);
+    n.alias = mssqlText(obj.attrs.Alias) ?? n.table;
+    if (!/Table Scan|Heap/i.test(physical)) {
+      const idx = mssqlText(obj.attrs.Index);
+      n.index = /Clustered/i.test(physical) && /^PK_/i.test(idx ?? '') ? 'primary key' : idx;
+    }
+    if (/Seek/i.test(physical)) n.cond = seekCond(op);
+    if (predicate) n.filter = predicate;
+    // A clustered index scan reads the whole table.
+    if (physical === 'Clustered Index Scan') n.index = undefined;
+  } else if (physical === 'Constant Scan') n.kind = children.length ? 'hidden' : 'values';
+  else if (/Join|Apply/i.test(logical) && /Nested Loops|Hash Match|Merge Join|Adaptive Join/i.test(physical)) {
+    n.kind = 'join';
+    n.joinType = /Anti/i.test(logical) ? 'Anti' : /Semi/i.test(logical) ? 'Semi' : /Left Outer/i.test(logical) ? 'Left' : /Right Outer/i.test(logical) ? 'Right' : /Full Outer/i.test(logical) ? 'Full' : 'Inner';
+    const build = xFind(op, 'HashKeysBuild') ?? xFind(op, 'InnerSideJoinColumns');
+    const probe = xFind(op, 'HashKeysProbe') ?? xFind(op, 'OuterSideJoinColumns');
+    const keys = build && probe ? `${mssqlColumn(xFind(probe, 'ColumnReference'))} = ${mssqlColumn(xFind(build, 'ColumnReference'))}` : undefined;
+    n.join = scalar(xFind(op, 'ProbeResidual') ?? xFind(op, 'Residual')) ?? keys ?? predicate;
+    // A Key Lookup (or RID Lookup) fetches the other columns of rows an index found: one read, not a join.
+    const lookup = children[1];
+    if (/Nested Loops/i.test(physical) && children.length === 2 && /^(Key|RID) Lookup$/i.test(lookup.op) && children[0].table === lookup.table) {
+      const first = children[0];
+      if (lookup.filter) first.filter = first.filter ? `${first.filter} AND ${lookup.filter}` : lookup.filter;
+      return first;
+    }
+    // Hash Match lists its build input first, which is the order it runs in.
+  } else if (/Aggregate/i.test(logical) || physical === 'Stream Aggregate') {
+    n.kind = 'group';
+    const g = xFind(op, 'GroupBy') ?? xFind(op, 'HashKeysBuild');
+    n.keys = g ? xAll(g, 'ColumnReference').map(mssqlColumn).filter(Boolean).join(', ') || undefined : undefined;
+  } else if (/Distinct/i.test(logical)) n.kind = 'distinct';
+  else if (physical === 'Sort' || /Sort/i.test(logical)) {
+    const top = op.name === 'TopSort' ? num(op.attrs.Rows) : undefined;
+    n.kind = top !== undefined || /TopN/i.test(logical) ? 'topn' : 'sort';
+    n.top = top;
+    const ob = xFind(op, 'OrderBy');
+    n.keys = ob ? ob.children.map((c) => `${mssqlColumn(xFind(c, 'ColumnReference')) ?? ''}${c.attrs.Ascending === 'false' ? ' DESC' : ''}`).join(', ') || undefined : undefined;
+  } else if (physical === 'Top') n.kind = 'limit';
+  else if (physical === 'Filter') {
+    n.kind = 'filter';
+    n.filter = predicate;
+    const having = foldHaving(children, predicate);
+    if (having) return having;
+  } else if (physical === 'Sequence Project' || /Window Aggregate/i.test(physical)) n.kind = 'window';
+  else if (physical === 'Concatenation' || /Union|Concatenation/i.test(logical)) n.kind = 'combine';
+  else if (MSSQL_HIDDEN.test(physical)) n.kind = 'hidden';
+  return n;
+}
+
+/** `SET SHOWPLAN_XML ON` output: the estimated plan, as XML text. */
+export function fromMssql(raw: unknown): PNode {
+  const doc = typeof raw === 'string' ? parseXml(raw) : (raw as XmlEl | undefined);
+  const plans: PNode[] = [];
+  mssqlExprs = new Map();
+  const names = (el: XmlEl) => {
+    for (const c of el.children) {
+      if (c.name === 'DefinedValue') {
+        const col = c.children.find((x) => x.name === 'ColumnReference')?.attrs.Column;
+        const def = c.children.find((x) => x.name === 'ScalarOperator')?.attrs.ScalarString;
+        if (col && def && /^Expr\d+$/.test(col) && !mssqlExprs.has(col)) mssqlExprs.set(col, def);
+      } else if (c.name === 'ColumnReference' && /^@\d+$/.test(c.attrs.Column ?? '') && c.attrs.ParameterCompiledValue) {
+        // A value SQL Server turned into a parameter (auto-parameterization).
+        mssqlExprs.set(c.attrs.Column, c.attrs.ParameterCompiledValue);
+      }
+      names(c);
+    }
+  };
+  if (doc) names(doc);
+  const walk = (el: XmlEl) => {
+    for (const c of el.children) {
+      if (c.name === 'QueryPlan') {
+        const r = c.children.find((x) => x.name === 'RelOp');
+        if (r) plans.push(mssqlRelOp(r));
+      } else walk(c);
+    }
+  };
+  if (doc) walk(doc);
+  if (!plans.length) return { kind: 'other', op: 'No plan', children: [] };
+  return plans.length === 1 ? plans[0] : { kind: 'hidden', op: 'roots', children: plans };
+}
+
 // ---------- The SQL text: clauses and table names ----------
 
 interface Clause {
@@ -790,7 +1196,8 @@ export function buildSteps(root: PNode, sql: string, driver = ''): BuildResult {
     b.step.inferred = true;
     outs = [b];
   };
-  if (driver === 'sqlite') {
+  if (driver === 'sqlite' || driver === 'mysql') {
+    // MySQL's classic JSON plan (MariaDB, writes) leaves out LIMIT as well.
     if (!has('group') && !has('sort') && (clausesOf(top, 'GROUP BY').length || selectAggLines(sh, top).length)) {
       infer({ kind: 'group', op: 'Aggregate', children: [] });
     }
@@ -821,7 +1228,7 @@ function addSelectStep(sh: SqlShape, top: Block, steps: PlanStep[]) {
   while (['limit', 'sort', 'topn', 'distinct'].includes(at.kind) && at.inputs.length === 1) at = steps[at.inputs[0] - 1];
   if (['limit', 'sort', 'topn', 'distinct'].includes(at.kind)) return;
   const lines = clauseLines(sh, sel);
-  const list = sh.text.slice(sel[0].start, sel[0].end).replace(/^select\s+(distinct\s+)?/i, '').replace(/\s+/g, ' ').trim();
+  const list = sh.text.slice(sel[0].start, sel[0].end).replace(/^select\s+(distinct\s+|all\s+)?(top\s*(?:\(\s*[^)]*\)|\d+)(\s+percent)?(\s+with\s+ties)?\s+)?/i, '').replace(/\s+/g, ' ').trim();
   const idx = at.n; // insert right after `at`
   const step: PlanStep = { n: idx + 1, kind: 'select', title: 'Pick columns', detail: `Builds each output row: ${short(list, 70)}.`, rows: at.rows, inputs: [at.n], lines, inferred: true };
   const after = consumers(at.n);
@@ -899,8 +1306,66 @@ function num(v: unknown): number | undefined {
 
 export { PLAN_DRIVERS } from '../../shared/protocol';
 
+/**
+ * The table MySQL's "Rows fetched before execution" read (a row found by its key while
+ * planning): the first table the query reads. For INSERT ... VALUES there is none.
+ */
+function mysqlFirstTable(sql: string): string | undefined {
+  const m = mask(sql);
+  if (/^\s*(?:insert|replace)\b/i.test(m)) {
+    const at = /\bselect\b[\s\S]*?\bfrom\s+/i.exec(m);
+    if (!at) return undefined;
+    const name = /^[`\w.$]+/.exec(sql.slice(at.index + at[0].length))?.[0];
+    return name ? name.replace(/`/g, '').split('.').pop() : undefined;
+  }
+  return shape(sql).refs[0]?.name;
+}
+
+/** GROUP BY in the statement itself (not inside a subquery). */
+function topLevelGroupBy(sql: string): boolean {
+  const m = mask(sql);
+  let depth = 0;
+  for (let i = 0; i < m.length; i++) {
+    if (m[i] === '(') depth++;
+    else if (m[i] === ')') depth--;
+    else if (depth === 0 && /[gG]/.test(m[i]) && !/\w/.test(m[i - 1] ?? '') && /^group\s+by\b/i.test(m.slice(i, i + 40))) return true;
+  }
+  return false;
+}
+
+/**
+ * MariaDB's JSON plan groups in a temporary table and has no grouping step. Put one
+ * back, under the ORDER BY sort and LIMIT, carrying the HAVING when there is one.
+ */
+function mysqlAddGroup(root: PNode, sql: string): PNode {
+  const has = (n: PNode): boolean => n.kind === 'group' || n.children.some(has);
+  if (has(root) || !topLevelGroupBy(sql)) return root;
+  let parent: PNode | undefined;
+  let having: PNode | undefined;
+  let cur = root;
+  while (cur.children.length === 1 && (['sort', 'topn', 'limit', 'distinct', 'hidden'].includes(cur.kind) || (cur.kind === 'filter' && cur.op === 'Having'))) {
+    if (cur.op === 'Having') having = cur;
+    parent = cur;
+    cur = cur.children[0];
+  }
+  const group: PNode = { kind: 'group', op: 'Aggregate', rows: cur.rows, children: [cur] };
+  if (having) {
+    group.filter = having.filter;
+    having.kind = 'hidden';
+    having.filter = undefined;
+  }
+  if (!parent) return group;
+  parent.children = [group];
+  return root;
+}
+
 export function planSteps(driver: string, raw: unknown, sql: string): BuildResult {
   const tableOf = (a: string) => shape(sql).refs.find((r) => r.alias?.toLowerCase() === a.toLowerCase())?.name;
-  const root = driver === 'postgres' ? fromPostgres(raw) : driver === 'duckdb' ? fromDuckdb(raw) : fromSqlite(raw as SqliteRow[], tableOf);
+  const root =
+    driver === 'postgres' ? fromPostgres(raw)
+    : driver === 'duckdb' ? fromDuckdb(raw)
+    : driver === 'mysql' ? mysqlAddGroup(fromMysql(raw, mysqlFirstTable(sql)), sql)
+    : driver === 'mssql' ? fromMssql(raw)
+    : fromSqlite(raw as SqliteRow[], tableOf);
   return buildSteps(root, sql, driver);
 }

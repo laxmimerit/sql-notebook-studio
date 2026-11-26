@@ -24,7 +24,10 @@ class OpenTransaction extends Error {
   }
 }
 
-export const STEPS_NOTE = 'Each step runs your query up to that clause, so you see real rows. Only SELECT queries are run.';
+export const PRODUCTION_NOTE = (steps: number) =>
+  `This connection is tagged Production. Query Steps runs your query up to each of its ${steps} steps, with a row count and a sample of rows each time, so the database does more work than one run. It only reads data.`;
+
+export const STEPS_NOTE ='Each step runs your query up to that clause, so you see real rows. Only SELECT queries are run.';
 
 export class QuerySteps {
   /** Per cell: the Query Steps still running, and how to stop it and close it. */
@@ -96,6 +99,16 @@ export class QuerySteps {
     const sameShape = 'steps' in plan && 'steps' in asWritten && asWritten.steps.length === plan.steps.length;
     if ('error' in plan) payload.error = plan.error;
     else payload.running = true;
+
+    // Query Steps sends several queries (a count and a sample for each step), so ask first on Production.
+    if (!('error' in plan) && conn.env === 'production') {
+      const go = await vscode.window.showWarningMessage(
+        `Run Query Steps on "${conn.name}"?`,
+        { modal: true, detail: PRODUCTION_NOTE(plan.steps.length) },
+        'Run',
+      );
+      if (go !== 'Run') return;
+    }
 
     let stopped = false;
     let close = false;

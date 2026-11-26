@@ -103,7 +103,7 @@ export interface AiStep {
 export const PLAN_MIME = 'application/vnd.sqlnotebook.plan+json';
 
 /** Drivers whose plans Query Flow can read. The renderer uses this to show its button. */
-export const PLAN_DRIVERS: ReadonlySet<string> = new Set(['postgres', 'sqlite', 'duckdb']);
+export const PLAN_DRIVERS: ReadonlySet<string> = new Set(['postgres', 'mysql', 'mssql', 'sqlite', 'duckdb']);
 
 export type StepKind = 'scan' | 'join' | 'filter' | 'group' | 'sort' | 'topn' | 'limit' | 'distinct' | 'window' | 'combine' | 'values' | 'select' | 'write' | 'other';
 

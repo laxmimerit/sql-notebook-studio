@@ -59,7 +59,7 @@ export interface StepPlan {
 
 export const NOT_SELECT = 'Query Steps works on SELECT queries (a WITH ... SELECT is fine).';
 
-const WRITES = /\b(insert|update|delete|merge|upsert|truncate|drop|alter|create|grant|revoke|call|exec|execute|copy|attach|detach|pragma|lock|into|nextval|setval)\b/i;
+const WRITES = /\b(insert|update|delete|merge|upsert|truncate|drop|alter|create|grant|revoke|call|exec|execute|copy|attach|detach|pragma|lock|updlock|xlock|tablockx|holdlock|into|nextval|setval)\b/i;
 const KW = /\b(select|from|where|group\s+by|having|window|qualify|order\s+by|limit|offset|fetch|union|intersect|except|minus|into|for)\b/gi;
 const JOIN = /\b(?:(?:natural|asof|positional)\s+)?(?:(?:inner|cross|left|right|full)\s+)?(?:(?:outer|semi|anti)\s+)?join\b|\bstraight_join\b|\b(?:cross|outer)\s+apply\b|,/gi;
 const AGG = /\b(count|sum|avg|min|max|group_concat|string_agg|array_agg|listagg|median|stddev\w*|variance|var_pop|var_samp|bool_and|bool_or|any_value)\s*\(/i;

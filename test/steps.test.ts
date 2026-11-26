@@ -48,6 +48,24 @@ describe('planQuerySteps', () => {
     expect(kinds('select top 5 id from orders where amount > 10 order by amount desc', 'mssql')).toEqual(['from:FROM', 'where:WHERE', 'select:SELECT', 'order:ORDER BY', 'limit:TOP']);
   });
 
+  it('reads SQL Server OFFSET ... FETCH, TOP WITH TIES and CROSS APPLY', () => {
+    expect(kinds('select name from customers order by name offset 1 rows fetch next 2 rows only', 'mssql').at(-1)).toBe('limit:OFFSET');
+    expect(kinds('select top 2 with ties name from customers order by city', 'mssql').at(-1)).toBe('limit:TOP');
+    expect(kinds('select c.name, x.amount from customers c cross apply (select top 1 amount from orders o where o.customer_id = c.id) x', 'mssql')).toEqual([
+      'from:FROM',
+      'join:CROSS APPLY',
+      'select:SELECT',
+    ]);
+  });
+
+  it('refuses SELECT ... INTO, FOR UPDATE and SQL Server lock hints', () => {
+    expect(error('select * into customers_copy from customers', 'mssql')).toMatch(/uses INTO/);
+    expect(error('select name from customers for update', 'postgres')).toMatch(/uses UPDATE/);
+    expect(error('select name from customers with (updlock) where id = 1', 'mssql')).toMatch(/uses UPDLOCK/);
+    expect(error('select name from customers with (tablockx, holdlock)', 'mssql')).toMatch(/uses TABLOCKX/);
+    expect(error('select name from customers with (nolock)', 'mssql')).toBeUndefined();
+  });
+
   it('handles a WITH before the SELECT', () => {
     const p = plan(`with paid as (select * from orders where status = 'paid') select customer_id from paid where amount > 5`);
     if ('error' in p) throw new Error(p.error);
@@ -146,19 +164,47 @@ async function steps(s: Session, driver: DriverId, sql: string, sampleRows = 50)
 }
 const counts = (st: QueryStep[]) => st.map((s) => `${s.clause}=${s.rows}${s.removed !== undefined ? `(-${s.removed})` : ''}`);
 
-for (const driver of ['sqlite', 'duckdb'] as DriverId[]) {
+// MySQL, PostgreSQL and SQL Server run too when SQLNB_MYSQL / SQLNB_PG / SQLNB_MSSQL point at a test server (host:port:user:password).
+function server(env: string | undefined) {
+  if (!env) return undefined;
+  const [host, port, user, ...pw] = env.split(':');
+  return { host, port: Number(port), user, secrets: { password: pw.join(':') } };
+}
+const targets: { driver: DriverId; conn: Partial<ResolvedConnection>; before?: string[] }[] = [
+  { driver: 'sqlite', conn: { file: ':memory:' } },
+  { driver: 'duckdb', conn: { file: ':memory:' } },
+];
+const my = server(process.env.SQLNB_MYSQL);
+if (my) targets.push({ driver: 'mysql', conn: { ...my, database: 'sqlnb_steps' }, before: ['create database if not exists sqlnb_steps'] });
+const pgc = server(process.env.SQLNB_PG);
+if (pgc) targets.push({ driver: 'postgres', conn: { ...pgc, database: 'postgres' } });
+const ms = server(process.env.SQLNB_MSSQL);
+if (ms) targets.push({ driver: 'mssql', conn: { ...ms, database: 'master', mssql: { auth: 'sql', encrypt: true, trustServerCertificate: true } } as Partial<ResolvedConnection> });
+
+const exec = (s: Session, sql: string) => s.run([sql], { maxRows: 10, onStart: () => undefined, onResult: () => undefined });
+
+for (const { driver, conn, before } of targets) {
+  // SQL Server has TOP, not LIMIT.
+  const demo = driver === 'mssql' ? DEMO.replace(/^SELECT /, 'SELECT TOP 3 ').replace(/\nLIMIT 3$/, '') : DEMO;
   describe(`Query Steps on ${driver}`, () => {
     let s: Session;
     it('sets up', async () => {
-      s = await load(driver).open({ id: 't', name: 't', driver, secrets: {}, file: ':memory:' } as ResolvedConnection);
+      const open = (c: Partial<ResolvedConnection>) => load(driver).open({ id: 't', name: 't', driver, secrets: {}, ...c } as ResolvedConnection);
+      if (before) {
+        const first = await open({ ...conn, database: undefined });
+        for (const sql of before) await exec(first, sql);
+        await first.close();
+      }
+      s = await open(conn);
       sessions.push(s);
-      for (const sql of SETUP) await s.run([sql], { maxRows: 10, onStart: () => undefined, onResult: () => undefined });
+      if (driver !== 'sqlite' && driver !== 'duckdb') for (const t of ['orders', 'customers']) await exec(s, `drop table if exists ${t}`);
+      for (const sql of SETUP) await exec(s, sql);
     });
 
     it('shows the rows after each clause, and the rows each one removed', async () => {
-      const { out, updates } = await steps(s, driver, DEMO);
+      const { out, updates } = await steps(s, driver, demo);
       expect(out.every((x) => x.status === 'done')).toBe(true);
-      expect(counts(out)).toEqual(['FROM=8', 'JOIN=7(-1)', 'WHERE=6(-1)', 'GROUP BY=3', 'HAVING=2(-1)', 'SELECT=2', 'ORDER BY=2', 'LIMIT=2(-0)']);
+      expect(counts(out)).toEqual(['FROM=8', 'JOIN=7(-1)', 'WHERE=6(-1)', 'GROUP BY=3', 'HAVING=2(-1)', 'SELECT=2', 'ORDER BY=2', `${driver === 'mssql' ? 'TOP' : 'LIMIT'}=2(-0)`]);
       // The order with no customer is the row the JOIN dropped; the refund is the one WHERE dropped.
       expect(out[1].removedRows!.rows).toHaveLength(1);
       expect(out[1].removedRows!.rows[0]).toContain(99);
@@ -198,7 +244,7 @@ for (const driver of ['sqlite', 'duckdb'] as DriverId[]) {
     });
 
     it('stops when asked', async () => {
-      const p = planQuerySteps(DEMO, driver) as StepPlan;
+      const p = planQuerySteps(demo, driver) as StepPlan;
       const out = await runQuerySteps(s, p, driver, { sampleRows: 50, linesOf: () => [], onUpdate: () => undefined, stopped: () => true });
       expect(out.every((x) => x.status === 'error' && x.error === 'Stopped.')).toBe(true);
     });

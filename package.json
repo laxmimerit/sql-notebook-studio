@@ -1,7 +1,7 @@
 {
   "name": "sql-notebook-studio",
   "displayName": "SQL Notebook Studio",
-  "description": "Notebooks for SQL: MySQL, PostgreSQL, SQL Server, built-in SQLite and DuckDB, with a fast results grid, charts and AI that explains and fixes your queries.",
+  "description": "Notebooks for SQL: MySQL, MariaDB, PostgreSQL, SQL Server, built-in SQLite and DuckDB, with a fast results grid, charts and AI that explains and fixes your queries.",
   "author": {
     "name": "KGP Talkie",
     "url": "https://www.youtube.com/kgptalkie"

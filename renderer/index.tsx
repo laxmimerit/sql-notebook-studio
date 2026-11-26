@@ -1,10 +1,11 @@
 import type { ActivationFunction } from 'vscode-notebook-renderer';
 import { createRoot, type Root } from 'react-dom/client';
-import { AI_MIME, PLAN_MIME, type AiPayload, type HostMessage, type PlanPayload, type RendererMessage, type ResultPayload } from '../shared/protocol';
+import { AI_MIME, PLAN_MIME, STEPS_MIME, type AiPayload, type HostMessage, type PlanPayload, type RendererMessage, type ResultPayload, type StepsPayload } from '../shared/protocol';
 import { lowerTop, placeAfterRun, settled } from './scroll';
 import { ResultView } from './Result';
 import { AiView } from './AiView';
 import { RunOrderView } from './RunOrder';
+import { QueryStepsView } from './QuerySteps';
 import { setPoster } from './util';
 import css from './styles.css';
 
@@ -100,12 +101,13 @@ export const activate: ActivationFunction = (ctx) => {
         entry = { root: createRoot(element), el: element };
         roots.set(item.id, entry);
       }
-      const data = item.json() as AiPayload | ResultPayload | PlanPayload;
+      const data = item.json() as AiPayload | ResultPayload | PlanPayload | StepsPayload;
       const id = data.id ?? item.id;
       if (item.mime === AI_MIME) entry.root.render(<AiView payload={data as AiPayload} outputId={id} />);
       else if (item.mime === PLAN_MIME) entry.root.render(<RunOrderView payload={data as PlanPayload} outputId={id} />);
+      else if (item.mime === STEPS_MIME) entry.root.render(<QueryStepsView payload={data as StepsPayload} outputId={id} />);
       else entry.root.render(<ResultView payload={data as ResultPayload} outputId={id} />);
-      if ((data as ResultPayload).running) running.add(id);
+      if ((data as ResultPayload | StepsPayload).running) running.add(id);
       else running.delete(id);
       outputs.set(id, element);
       ourIds.set(item.id, id);

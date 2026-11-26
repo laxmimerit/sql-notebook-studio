@@ -13,6 +13,7 @@ import { registerShiftEnter } from './notebook/shiftEnter';
 import { SqlNotebookSerializer, NOTEBOOK_TYPE, AI_LANGUAGE, SQL_LANGUAGE } from './notebook/serializer';
 import { AiService } from './ai/service';
 import { RunOrder } from './notebook/runOrder';
+import { QuerySteps } from './notebook/querySteps';
 import { openConnectionForm, duplicateConnection, type FormDeps } from './connections/formPanel';
 import { exportNotebook } from './export/exporter';
 import { splitStatements } from './db/splitter';
@@ -207,7 +208,10 @@ export function activate(ctx: vscode.ExtensionContext) {
   cmd('sqlNotebook.explainCell', (cell?: vscode.NotebookCell) => ai.explainCell(cell));
   cmd('sqlNotebook.optimizeCell', (cell?: vscode.NotebookCell) => ai.optimizeCell(cell));
   const runOrder = new RunOrder(kernels);
-  cmd('sqlNotebook.runOrder', (cell?: vscode.NotebookCell) => runOrder.show(cell));
+  // From a cell's toolbar (a cell is passed) the button opens, and a second click closes.
+  cmd('sqlNotebook.runOrder', (cell?: vscode.NotebookCell) => runOrder.show(cell, undefined, !!cell));
+  const querySteps = new QuerySteps(kernels);
+  cmd('sqlNotebook.querySteps', (cell?: vscode.NotebookCell) => querySteps.show(cell, undefined, !!cell));
   /** Adds an empty AI prompt cell at `index` and puts the cursor in it. */
   const insertAiCell = async (editor: vscode.NotebookEditor, index: number) => {
     const edit = new vscode.WorkspaceEdit();
@@ -346,7 +350,16 @@ export function activate(ctx: vscode.ExtensionContext) {
             if (!f) return;
             const item = f.output.items.find((i) => i.mime === RESULT_MIME);
             const sql = item ? (JSON.parse(Buffer.from(item.data).toString('utf8')) as ResultPayload).results[m.resultIndex]?.sql : undefined;
-            await runOrder.show(f.cell, sql);
+            await runOrder.show(f.cell, sql, true);
+            break;
+          }
+          case 'querySteps': {
+            // Step through the statement this result came from, not the one under the cursor.
+            const f = findOutput(m.outputId);
+            if (!f) return;
+            const item = f.output.items.find((i) => i.mime === RESULT_MIME);
+            const sql = item ? (JSON.parse(Buffer.from(item.data).toString('utf8')) as ResultPayload).results[m.resultIndex]?.sql : undefined;
+            await querySteps.show(f.cell, sql, true);
             break;
           }
           case 'applySql':

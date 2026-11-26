@@ -24,6 +24,8 @@ export class Kernels implements vscode.Disposable {
   private sessionValues = new Map<string, Record<string, string>>();
   /** Where each notebook's session is after its last run, by "notebook uri|connection id". */
   private locations = new Map<string, Where>();
+  /** Per cell: the last execution started by withExecution, so two never overlap. */
+  private queues = new Map<string, Promise<unknown>>();
   private readonly ranOk = new vscode.EventEmitter<string>();
   /** Fires with a connection id after a cell ran on it without error, so the explorer can recheck it. */
   readonly onDidRunOk = this.ranOk.event;
@@ -412,16 +414,28 @@ export class Kernels implements vscode.Disposable {
   }
 
   /** Starts an execution on a cell without running it, for AI output and dismissals. */
+  // A cell takes one execution at a time: Query Steps still running and a click
+  // on Query Flow (or Close) wait for each other instead of failing.
   async withExecution<T>(nb: vscode.NotebookDocument, cell: vscode.NotebookCell, fn: (exec: vscode.NotebookCellExecution) => Promise<T>): Promise<T | undefined> {
-    const ctrl = await this.ensureController(nb);
-    if (!ctrl) return undefined;
-    const exec = ctrl.createNotebookCellExecution(cell);
-    exec.executionOrder = cell.executionSummary?.executionOrder;
-    exec.start(Date.now());
+    const key = cell.document.uri.toString();
+    const before = this.queues.get(key) ?? Promise.resolve();
+    const mine = before.catch(() => undefined).then(async () => {
+      const ctrl = await this.ensureController(nb);
+      if (!ctrl || cell.index < 0) return undefined;
+      const exec = ctrl.createNotebookCellExecution(cell);
+      exec.executionOrder = cell.executionSummary?.executionOrder;
+      exec.start(Date.now());
+      try {
+        return await fn(exec);
+      } finally {
+        exec.end(cell.executionSummary?.success, Date.now());
+      }
+    });
+    this.queues.set(key, mine);
     try {
-      return await fn(exec);
+      return await mine;
     } finally {
-      exec.end(cell.executionSummary?.success, Date.now());
+      if (this.queues.get(key) === mine) this.queues.delete(key);
     }
   }
 }
@@ -439,6 +453,31 @@ export function findOutput(id: string) {
     }
   }
   return undefined;
+}
+
+/**
+ * Sets a cell's outputs so that only the end of the list changes.
+ *
+ * VS Code loses the height of the output after one taken out of the middle of a
+ * cell's outputs (it removes the height twice), so the next cell is drawn over
+ * it: closing Query Flow above an open Query Steps did this. Here the outputs
+ * after the first difference are taken off and put back, which VS Code handles.
+ */
+export async function setOutputs(exec: vscode.NotebookCellExecution, cell: vscode.NotebookCell, next: readonly vscode.NotebookCellOutput[]): Promise<void> {
+  const cur = cell.outputs;
+  const key = (o: vscode.NotebookCellOutput) => (o as { id?: string }).id ?? (o.metadata?.sqlnbId as string | undefined);
+  let same = 0;
+  while (same < cur.length && same < next.length && key(cur[same]) !== undefined && key(cur[same]) === key(next[same])) same++;
+  // Only removed from the end, or only added at the end: one change is fine.
+  if (same === next.length || same === cur.length) {
+    await exec.replaceOutput([...next]);
+    return;
+  }
+  const had = new Set(cur.map(key));
+  // Outputs that were there already go back as copies, with new ids.
+  const rest = next.slice(same).map((o) => (had.has(key(o)) ? new vscode.NotebookCellOutput(o.items, o.metadata) : o));
+  await exec.replaceOutput(next.slice(0, same));
+  await exec.appendOutput(rest);
 }
 
 export function errorOutput(message: string): vscode.NotebookCellOutput {

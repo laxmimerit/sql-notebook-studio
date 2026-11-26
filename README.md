@@ -103,6 +103,7 @@ To make your own notebook, run **SQL Notebook Studio: New SQL Notebook**, or rig
 | **Notebooks** | SQL, Markdown and AI cells. Several statements per cell, each with its own result tab. Stop works on every database. |
 | **Results grid** | Virtual scrolling, sort (Shift+click for more columns), filter per column (`>10`, `a..b`, `!x`, `null`), resize and pin columns, value viewer for long text and JSON. |
 | **Charts** | Bar, line, area, scatter and pie. Pick X and Y, stack series, save the chart with the cell. |
+| **Query Steps** | See the rows after each clause of a SELECT, in the order the database applies them: FROM, JOIN, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, LIMIT. Each step shows real rows, the row count change, and the rows that step removed. Read-only; works on every database. |
 | **Explorer** | Connections, schemas, tables, views and columns with types and keys. Select Top 100 and Describe in one click. |
 | **Autocomplete** | Tables, views, columns, schemas and keywords from the live schema. Fuzzy and case-blind: `slt` finds `SELECT`, `EMP` finds `employees`. `alias.` lists that table's columns. |
 | **Capital keywords** | SQL keywords turn into capitals as you type, using the keyword list of the cell's database. Your table, column and alias names, strings and comments stay as you wrote them. One **Ctrl+Z** undoes it. |

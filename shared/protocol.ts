@@ -137,6 +137,69 @@ export interface PlanPayload {
   steps: PlanStep[];
   /** Clause keywords in the order they are written (SELECT, FROM, ...). */
   written: string[];
+  /** The result output of the cell when this was opened: its Query Flow button shows it is open. */
+  resultId?: string;
+  note?: string;
+  error?: string;
+}
+
+export const STEPS_MIME = 'application/vnd.sqlnotebook.steps+json';
+
+/** The clauses Query Steps can stop after, in the order a database applies them. */
+export type QueryStepKind = 'from' | 'join' | 'where' | 'group' | 'having' | 'select' | 'distinct' | 'order' | 'limit';
+
+/** Some of the rows a step produced (or dropped). */
+export interface StepRows {
+  columns: Column[];
+  rows: Cell[][];
+  /** More rows exist than are shown. */
+  more: boolean;
+}
+
+/** One Query Steps step: the rows after one clause, from running the query up to that clause. */
+export interface QueryStep {
+  /** 1-based. */
+  n: number;
+  kind: QueryStepKind;
+  /** The keyword as written: FROM, LEFT JOIN, WHERE, GROUP BY, ... */
+  clause: string;
+  /** The clause, shortened: "WHERE o.status = 'paid'". */
+  title: string;
+  /** A plain-English sentence about what this step did. */
+  detail?: string;
+  /** Rows (or groups) after this step, when known. */
+  rows?: number;
+  unit: 'rows' | 'groups';
+  /** Rows this step dropped, when known. */
+  removed?: number;
+  /** What `removedRows` holds: rows this step dropped, or (LEFT JOIN) rows kept with no match. */
+  removedLabel?: string;
+  sample?: StepRows;
+  removedRows?: StepRows;
+  /** The query run to show this step's rows. */
+  sql?: string;
+  /** 0-based lines of `StepsPayload.sql` this step comes from. */
+  lines: number[];
+  status: 'pending' | 'running' | 'done' | 'error';
+  error?: string;
+}
+
+export interface StepsPayload {
+  v: 1;
+  id?: string;
+  connection: string;
+  driver: string;
+  /** The statement shown, as written in the cell. */
+  sql: string;
+  /** 0-based line of the statement in the cell, for line numbers. */
+  firstLine: number;
+  steps: QueryStep[];
+  /** Rows shown per step. */
+  sampleRows: number;
+  /** True while steps are still running. */
+  running?: boolean;
+  /** The result output of the cell when this was opened: its Query Steps button shows it is open. */
+  resultId?: string;
   note?: string;
   error?: string;
 }
@@ -150,6 +213,7 @@ export type RendererMessage =
   | { type: 'fix'; outputId: string }
   | { type: 'explainResult'; outputId: string; resultIndex: number }
   | { type: 'queryFlow'; outputId: string; resultIndex: number }
+  | { type: 'querySteps'; outputId: string; resultIndex: number }
   | { type: 'applySql'; outputId: string; sql: string }
   | { type: 'runCell'; outputId: string }
   | { type: 'dismissAi'; outputId: string }
@@ -170,6 +234,17 @@ export type HostMessage =
   | { type: 'placeAfterRun'; outputId: string; nextOutputId?: string; ratio: number; fit?: boolean }
   /** The cell that was run was just put at the top of the window: move it down to `ratio`. */
   | { type: 'lowerTop'; ratio: number };
+
+/** A SELECT (or WITH ... SELECT): the statements Query Steps can step through. */
+export function isSelect(sql: string): boolean {
+  return /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(select|with)\b/i.test(sql);
+}
+
+/** The same statement, ignoring surrounding space and a final semicolon. */
+export function sameStatement(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/\r\n?/g, '\n').trim().replace(/;\s*$/, '').trim();
+  return norm(a) === norm(b);
+}
 
 /** AI suggestions that change the schema (like CREATE INDEX) go in a new cell instead of replacing the query. */
 export function isSchemaChange(sql: string): boolean {

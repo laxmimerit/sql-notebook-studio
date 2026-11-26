@@ -13,3 +13,9 @@ export class EventEmitter<T> {
     this.listeners = [];
   }
 }
+export class NotebookCellOutput {
+  constructor(
+    public items: unknown[],
+    public metadata?: Record<string, unknown>,
+  ) {}
+}

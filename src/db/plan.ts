@@ -347,8 +347,14 @@ function foldHaving(children: PNode[], filter: string | undefined): PNode | unde
 /** Strips schema names and backticks from a MySQL condition: `shop`.`c`.`id` > 2 gives c.id > 2. */
 function mysqlCond(c: unknown): string | undefined {
   if (typeof c !== 'string' || !c) return undefined;
-  // MySQL prints COUNT(*) as count(0).
-  return c.replace(/`[^`]+`\.(`[^`]+`\.`[^`]+`)/g, '$1').replace(/`/g, '').replace(/\bcount\(0\)/gi, 'count(*)');
+  // MySQL prints COUNT(*) as count(0); MariaDB writes EXISTS as <in_optimizer>(c.id,<exists>(subquery#2)).
+  return c
+    .replace(/`[^`]+`\.(`[^`]+`\.`[^`]+`)/g, '$1')
+    .replace(/`/g, '')
+    .replace(/\bcount\(0\)/gi, 'count(*)')
+    .replace(/<in_optimizer>\([^,()]*,\s*<exists>\(subquery#(\d+)\)\)/g, 'EXISTS (subquery $1)')
+    .replace(/!\s*EXISTS \(/g, 'NOT EXISTS (')
+    .replace(/<cache>\(([^()]*)\)/g, '$1');
 }
 
 /** Classic `EXPLAIN FORMAT=JSON` (MySQL 5.6+, JSON format version 1, and MariaDB). */
@@ -366,6 +372,13 @@ function mysqlJsonNode(o: any, firstTable?: string): PNode | undefined {
     const { having_condition, ...rest } = o;
     return wrap('filter', 'Having', mysqlJsonNode(rest, firstTable), { filter: mysqlCond(having_condition) });
   }
+  // MariaDB lists the subqueries a condition runs (EXISTS, IN) beside the query.
+  if (Array.isArray(o.subqueries) && o.subqueries.length) {
+    const { subqueries, ...rest } = o;
+    const subs = (subqueries as any[]).map((q) => mysqlJsonNode(q, firstTable)).filter((x): x is PNode => !!x);
+    const main = mysqlJsonNode(rest, firstTable);
+    return main ? { kind: 'hidden', op: 'Subqueries', children: [...subs, main] } : undefined;
+  }
   if (o.union_result) {
     const parts = ((o.union_result.query_specifications ?? []) as any[]).map((s) => mysqlJsonNode(s, firstTable)).filter((x): x is PNode => !!x);
     return { kind: 'combine', op: 'Union', children: parts };
@@ -378,6 +391,7 @@ function mysqlJsonNode(o: any, firstTable?: string): PNode | undefined {
   if (o.grouping_operation) return wrap('group', 'Aggregate', mysqlJsonNode(o.grouping_operation, firstTable));
   if (o.duplicates_removal) return wrap('distinct', 'Remove duplicates', mysqlJsonNode(o.duplicates_removal, firstTable));
   if (o.windowing) return wrap('window', 'Window', mysqlJsonNode(o.windowing, firstTable));
+  if (o.window_functions_computation) return wrap('window', 'Window', mysqlJsonNode(o.window_functions_computation, firstTable));
   for (const k of ['temporary_table', 'buffer_result', 'read_sorted_file']) if (o[k]) return mysqlJsonNode(o[k], firstTable);
   if (Array.isArray(o.nested_loop)) {
     let cur: PNode | undefined;
@@ -392,6 +406,10 @@ function mysqlJsonNode(o: any, firstTable?: string): PNode | undefined {
     return cur;
   }
   if (o.table) {
+    // MariaDB: {"table": {"message": "Impossible WHERE"}}.
+    if (typeof o.table.message === 'string' && !o.table.table_name) return mysqlJsonNode({ message: o.table.message }, firstTable);
+    // MariaDB's INSERT ... VALUES names only the target table.
+    if (o.table.table_name && !o.table.access_type && !o.table.update && !o.table.delete && !o.table.insert && !o.insert_from) return { kind: 'values', op: 'Values', children: [] };
     const t = mysqlTable(o.table, firstTable);
     if (o.insert_from) t.children.push(...[mysqlJsonNode(o.insert_from, firstTable)].filter((x): x is PNode => !!x));
     return t;
@@ -403,9 +421,14 @@ function mysqlTable(t: any, firstTable?: string): PNode {
   const name = bare(String(t.table_name ?? ''));
   const rows = num(t.rows_produced_per_join ?? t.rows);
   const write = t.update ? 'Update' : t.delete ? 'Delete' : t.insert ? 'Insert' : undefined;
-  const ref = Array.isArray(t.ref) && Array.isArray(t.used_key_parts) && t.ref[0] !== 'const' ? `${t.used_key_parts[0]} = ${bare(String(t.ref[0])).split('.').slice(-2).join('.')}` : undefined;
-  const sub = t.materialized_from_subquery ? mysqlJsonNode(t.materialized_from_subquery, firstTable) : undefined;
-  const scan: PNode = name.startsWith('<')
+  const ref = Array.isArray(t.ref) && Array.isArray(t.used_key_parts) && !['const', 'func'].includes(t.ref[0]) ? `${t.used_key_parts[0]} = ${bare(String(t.ref[0])).split('.').slice(-2).join('.')}` : undefined;
+  const from = t.materialized_from_subquery ?? t.materialized;
+  const sub = from ? mysqlJsonNode(from, firstTable) : undefined;
+  // MariaDB names a CTE or derived table <derived2>: read it back under its own name.
+  const derived = /^<derived\d+>$/i.test(name) && sub ? mysqlDerived.shift() : undefined;
+  const scan: PNode = derived
+    ? { kind: 'scan', op: 'Derived', table: derived, alias: derived, cond: ref, rows, children: [sub!] }
+    : name.startsWith('<')
     ? { kind: 'hidden', op: name, rows, children: sub ? [sub] : [] }
     : { kind: 'scan', op: String(t.access_type ?? 'scan'), table: name, alias: name, index: mysqlIndex(t.key), cond: ref, rows, children: sub ? [sub] : [] };
   const cond = mysqlCond(t.attached_condition);
@@ -415,8 +438,12 @@ function mysqlTable(t: any, firstTable?: string): PNode {
   return filtered;
 }
 
+/** CTE and derived table names, in the order the SQL has them (MariaDB's <derivedN>). */
+let mysqlDerived: string[] = [];
+
 /** MySQL's plan: the tree text when the server gives one, else classic JSON. */
-export function fromMysql(raw: unknown, firstTable?: string): PNode {
+export function fromMysql(raw: unknown, firstTable?: string, derived: string[] = []): PNode {
+  mysqlDerived = [...derived];
   // A bare string is tree text, or JSON when it starts with {; a bare object is classic JSON.
   const p: MysqlPlan =
     typeof raw === 'string' ? (raw.trimStart().startsWith('{') ? { format: 'json', json: JSON.parse(raw) } : { format: 'tree', text: raw })
@@ -1343,42 +1370,93 @@ function mysqlFirstTable(sql: string): string | undefined {
   return shape(sql).refs[0]?.name;
 }
 
-/** GROUP BY in the statement itself (not inside a subquery). */
-function topLevelGroupBy(sql: string): boolean {
+function derivedNames(sql: string): string[] {
+  return shape(sql)
+    .blocks.filter((b) => b.name)
+    .sort((a, b) => a.start - b.start)
+    .map((b) => b.name!);
+}
+
+/** A keyword at the statement's own level (not inside brackets: subqueries, CTEs). */
+function topLevel(sql: string, re: RegExp): boolean {
   const m = mask(sql);
   let depth = 0;
   for (let i = 0; i < m.length; i++) {
     if (m[i] === '(') depth++;
     else if (m[i] === ')') depth--;
-    else if (depth === 0 && /[gG]/.test(m[i]) && !/\w/.test(m[i - 1] ?? '') && /^group\s+by\b/i.test(m.slice(i, i + 40))) return true;
+    else if (depth === 0 && /\w/.test(m[i]) && !/\w/.test(m[i - 1] ?? '') && re.test(m.slice(i, i + 40))) return true;
   }
   return false;
 }
 
+/** Whether this part of the plan has a step of this kind, not counting CTEs and derived tables read back in it. */
+function hasOwn(n: PNode, kind: StepKind): boolean {
+  return n.kind === kind || (n.op !== 'Derived' && n.children.some((c) => hasOwn(c, kind)));
+}
+
+/** MariaDB removes duplicates in a temporary table, with no step of its own: put one back under ORDER BY and LIMIT. */
+function mysqlAddDistinct(root: PNode, sql: string): PNode {
+  if (hasOwn(root, 'distinct') || !topLevel(sql, /^select\s+distinct\b/i)) return root;
+  let parent: PNode | undefined;
+  let cur = root;
+  while (cur.children.length === 1 && ['sort', 'topn', 'limit', 'hidden'].includes(cur.kind)) {
+    parent = cur;
+    cur = cur.children[0];
+  }
+  const d: PNode = { kind: 'distinct', op: 'Remove duplicates', children: [cur] };
+  if (!parent) return d;
+  parent.children = [d];
+  return root;
+}
+
 /**
- * MariaDB's JSON plan groups in a temporary table and has no grouping step. Put one
- * back, under the ORDER BY sort and LIMIT, carrying the HAVING when there is one.
+ * Puts a GROUP BY step under ORDER BY and LIMIT, carrying the HAVING. With no ORDER BY,
+ * a sort there is MariaDB grouping by sorting, so it becomes the group step.
  */
-function mysqlAddGroup(root: PNode, sql: string): PNode {
-  const has = (n: PNode): boolean => n.kind === 'group' || n.children.some(has);
-  if (has(root) || !topLevelGroupBy(sql)) return root;
+function insertGroup(root: PNode, sortIsGroup: boolean): PNode {
   let parent: PNode | undefined;
   let having: PNode | undefined;
   let cur = root;
-  while (cur.children.length === 1 && (['sort', 'topn', 'limit', 'distinct', 'hidden'].includes(cur.kind) || (cur.kind === 'filter' && cur.op === 'Having'))) {
+  const passes = (n: PNode) =>
+    n.children.length === 1 && (['topn', 'limit', 'distinct', 'hidden'].includes(n.kind) || (n.kind === 'sort' && !sortIsGroup) || (n.kind === 'filter' && n.op === 'Having'));
+  while (passes(cur)) {
     if (cur.op === 'Having') having = cur;
     parent = cur;
     cur = cur.children[0];
   }
-  const group: PNode = { kind: 'group', op: 'Aggregate', rows: cur.rows, children: [cur] };
+  let group: PNode;
+  if (sortIsGroup && cur.kind === 'sort') {
+    group = cur;
+    group.kind = 'group';
+    group.op = 'Aggregate';
+  } else {
+    group = { kind: 'group', op: 'Aggregate', rows: cur.rows, children: [cur] };
+    if (parent) parent.children = [group];
+    else root = group;
+  }
   if (having) {
     group.filter = having.filter;
     having.kind = 'hidden';
     having.filter = undefined;
   }
-  if (!parent) return group;
-  parent.children = [group];
   return root;
+}
+
+/**
+ * MariaDB's JSON plan groups in a temporary table (or by sorting) and has no grouping
+ * step. Put one back, in the statement and in each CTE or derived table that has GROUP BY.
+ */
+function mysqlAddGroup(root: PNode, sql: string): PNode {
+  const sh = shape(sql);
+  const visit = (n: PNode) => {
+    n.children.forEach(visit);
+    if (n.op !== 'Derived' || n.children.length !== 1) return;
+    const b = sh.blocks.find((x) => x.name === n.table);
+    if (b && clausesOf(b, 'GROUP BY').length && !hasOwn(n.children[0], 'group')) n.children[0] = insertGroup(n.children[0], !clausesOf(b, 'ORDER BY').length);
+  };
+  visit(root);
+  if (hasOwn(root, 'group') || !topLevel(sql, /^group\s+by\b/i)) return root;
+  return insertGroup(root, !topLevel(sql, /^order\s+by\b/i));
 }
 
 /**
@@ -1408,7 +1486,7 @@ export function planSteps(driver: string, raw: unknown, sql: string): BuildResul
   const root =
     driver === 'postgres' ? fromPostgres(raw)
     : driver === 'duckdb' ? fromDuckdb(raw)
-    : driver === 'mysql' ? mysqlAddGroup(fromMysql(raw, mysqlFirstTable(sql)), sql)
+    : driver === 'mysql' ? mysqlAddDistinct(mysqlAddGroup(fromMysql(raw, mysqlFirstTable(sql), derivedNames(sql)), sql), sql)
     : driver === 'mssql' ? mssqlEmpty(fromMssql(raw), sql)
     : fromSqlite(raw as SqliteRow[], tableOf);
   return buildSteps(root, sql, driver);

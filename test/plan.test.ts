@@ -9,6 +9,7 @@ type Fx = Record<'sqlite' | 'duckdb', Record<string, unknown>> & {
   sql: Record<string, string>;
   mysql: { tree: Record<string, Case>; json: Record<string, Case> };
   mssql: Record<string, Case>;
+  mariadb: Record<string, Case>;
 };
 const F = fx as unknown as Fx;
 
@@ -300,6 +301,57 @@ describe('MySQL plans', () => {
       'sort:Sort by n desc@5',
     ]);
     expect(steps[1].detail).toMatch(/keeps groups where count\(\*\) >= 2/);
+  });
+});
+
+// JSON plans captured from MariaDB 11.8 (EXPLAIN FORMAT=JSON). MariaDB groups and removes
+// duplicates in a temporary table, with no step of its own, so those steps come from the SQL.
+describe('MariaDB plans', () => {
+  const ma = (c: Case) => summary('mysql', c.plan, c.sql);
+
+  it('GROUP BY with its HAVING, ORDER BY and LIMIT, in run order', () => {
+    expect(ma(F.mariadb.demo)).toEqual([
+      'scan:Read orders@2,4',
+      'scan:Read customers@3',
+      'join:Join orders + customers@3',
+      'group:Group by c.name@5,6',
+      'select:Pick columns@1',
+      'sort:Sort by n desc@7',
+      'limit:Keep first 3@8',
+    ]);
+    expect(planSteps('mysql', F.mariadb.demo.plan, F.mariadb.demo.sql).steps[3].detail).toMatch(/keeps groups where count\(\*\) >= 2/);
+  });
+
+  it('GROUP BY with no ORDER BY, and SELECT DISTINCT', () => {
+    expect(ma(F.mariadb.groupnosort)).toEqual(['scan:Read orders@1', 'group:Group by customer_id@1', 'select:Pick columns@1']);
+    expect(ma(F.mariadb.distinct)).toEqual(['scan:Read customers@1', 'select:Pick columns@1', 'distinct:Remove duplicates@1']);
+  });
+
+  it('a CTE with GROUP BY: its sort is the grouping, and ORDER BY sorts once', () => {
+    expect(ma(F.mariadb.cte)).toEqual([
+      'scan:Read customers@2',
+      'scan:Read orders@1',
+      'group:Group by customer_id@1',
+      'scan:Read big@2',
+      'join:Join customers + big@2',
+      'select:Pick columns@2',
+      'sort:Sort by b.total desc@3',
+    ]);
+  });
+
+  it('NOT EXISTS, without a "func" reference in the text', () => {
+    const { steps } = planSteps('mysql', F.mariadb.notexists.plan, F.mariadb.notexists.sql);
+    expect(steps.map((s) => s.title)).toEqual(['Read orders', 'Read customers', 'Pick columns']);
+    expect(steps[1].detail).toMatch(/NOT EXISTS \(subquery 2\)/);
+    expect(steps.map((s) => s.detail).join(' ')).not.toMatch(/func/);
+  });
+
+  it('writes, a window function and an impossible WHERE', () => {
+    expect(ma(F.mariadb.update)).toEqual(['scan:Read orders@1', 'write:Update orders@1']);
+    expect(ma(F.mariadb.insert)).toEqual(['values:Read VALUES@1', 'write:Insert into customers@1']);
+    expect(ma(F.mariadb.insel)).toEqual(['scan:Read customers@1', 'write:Insert into customers@1']);
+    expect(ma(F.mariadb.window)).toEqual(['scan:Read customers@1', 'window:Window functions@1', 'select:Pick columns@1']);
+    expect(ma(F.mariadb.empty)[0]).toBe('other:Skip: no row can match@');
   });
 });
 
